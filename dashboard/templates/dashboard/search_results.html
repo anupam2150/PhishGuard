@@ -1,0 +1,141 @@
+{% extends "base.html" %}
+{% block title %}Search — {{ query }}{% endblock %}
+
+{% block content %}
+<div class="d-flex align-items-center justify-content-between mb-4">
+  <div>
+    <h4 class="mb-0">Search Results</h4>
+    <span class="text-muted small">
+      {% if query %}"{{ query }}" — {{ total }} result{{ total|pluralize }} found{% endif %}
+    </span>
+  </div>
+  <a href="{% url 'dashboard:overview' %}" class="btn btn-outline-secondary btn-sm">
+    <i class="bi bi-arrow-left me-1"></i>Dashboard
+  </a>
+</div>
+
+{% if not query %}
+  <div class="alert alert-info">Enter a search term in the navbar to search across all scan history.</div>
+{% elif total == 0 %}
+  <div class="alert alert-warning">
+    <i class="bi bi-search me-2"></i>No results found for "<strong>{{ query }}</strong>".
+    Try a different domain, IP, email, or risk level.
+  </div>
+{% else %}
+
+  <!-- Nav Tabs -->
+  <ul class="nav nav-tabs mb-3" id="searchTabs">
+    {% if url_results %}
+    <li class="nav-item">
+      <button class="nav-link active" data-bs-toggle="tab" data-bs-target="#tab-url">
+        <i class="bi bi-link-45deg me-1"></i>URL Scans
+        <span class="badge bg-secondary ms-1">{{ url_results|length }}</span>
+      </button>
+    </li>
+    {% endif %}
+    {% if email_results %}
+    <li class="nav-item">
+      <button class="nav-link {% if not url_results %}active{% endif %}" data-bs-toggle="tab" data-bs-target="#tab-email">
+        <i class="bi bi-envelope-open me-1"></i>Email Analyses
+        <span class="badge bg-secondary ms-1">{{ email_results|length }}</span>
+      </button>
+    </li>
+    {% endif %}
+    {% if intel_results %}
+    <li class="nav-item">
+      <button class="nav-link {% if not url_results and not email_results %}active{% endif %}" data-bs-toggle="tab" data-bs-target="#tab-intel">
+        <i class="bi bi-search me-1"></i>Threat Intel
+        <span class="badge bg-secondary ms-1">{{ intel_results|length }}</span>
+      </button>
+    </li>
+    {% endif %}
+  </ul>
+
+  <div class="tab-content">
+
+    {% if url_results %}
+    <div class="tab-pane fade show active" id="tab-url">
+      <div class="card">
+        <div class="card-body p-0">
+          <table class="table table-sm table-hover mb-0">
+            <thead><tr><th>Domain</th><th>URL</th><th>Risk</th><th>Date</th></tr></thead>
+            <tbody>
+              {% for s in url_results %}
+              <tr>
+                <td><a href="{% url 'scanner:result' s.pk %}">{{ s.domain }}</a></td>
+                <td class="text-truncate" style="max-width:240px;">
+                  <span class="text-muted small">{{ s.url }}</span>
+                </td>
+                <td>
+                  {% if s.risk_level == "CRITICAL" %}<span class="badge bg-danger">CRITICAL</span>
+                  {% elif s.risk_level == "HIGH" %}<span class="badge bg-warning text-dark">HIGH</span>
+                  {% elif s.risk_level == "MEDIUM" %}<span class="badge bg-info text-dark">MEDIUM</span>
+                  {% else %}<span class="badge bg-success">LOW</span>{% endif %}
+                </td>
+                <td><span class="text-muted small">{{ s.scanned_at|date:"Y-m-d H:i" }}</span></td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+    {% endif %}
+
+    {% if email_results %}
+    <div class="tab-pane fade {% if not url_results %}show active{% endif %}" id="tab-email">
+      <div class="card">
+        <div class="card-body p-0">
+          <table class="table table-sm table-hover mb-0">
+            <thead><tr><th>Sender</th><th>SPF</th><th>DKIM</th><th>Risk</th><th>Date</th></tr></thead>
+            <tbody>
+              {% for e in email_results %}
+              <tr>
+                <td><a href="{% url 'emailparser:result' e.pk %}">{{ e.sender|truncatechars:40 }}</a></td>
+                <td><span class="badge {% if e.spf_result == 'pass' %}bg-success{% elif e.spf_result == 'fail' %}bg-danger{% else %}bg-secondary{% endif %}">{{ e.spf_result }}</span></td>
+                <td><span class="badge {% if e.dkim_result == 'pass' %}bg-success{% elif e.dkim_result == 'fail' %}bg-danger{% else %}bg-secondary{% endif %}">{{ e.dkim_result }}</span></td>
+                <td>
+                  {% if e.risk_level == "HIGH" %}<span class="badge bg-danger">HIGH</span>
+                  {% elif e.risk_level == "MEDIUM" %}<span class="badge bg-warning text-dark">MEDIUM</span>
+                  {% else %}<span class="badge bg-success">LOW</span>{% endif %}
+                </td>
+                <td><span class="text-muted small">{{ e.submitted_at|date:"Y-m-d H:i" }}</span></td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+    {% endif %}
+
+    {% if intel_results %}
+    <div class="tab-pane fade {% if not url_results and not email_results %}show active{% endif %}" id="tab-intel">
+      <div class="card">
+        <div class="card-body p-0">
+          <table class="table table-sm table-hover mb-0">
+            <thead><tr><th>Indicator</th><th>Type</th><th>Risk</th><th>Date</th></tr></thead>
+            <tbody>
+              {% for r in intel_results %}
+              <tr>
+                <td><a href="{% url 'intel:result' r.pk %}">{{ r.indicator|truncatechars:40 }}</a></td>
+                <td><span class="badge bg-secondary">{{ r.indicator_type }}</span></td>
+                <td>
+                  {% if r.risk_level == "CRITICAL" %}<span class="badge bg-danger">CRITICAL</span>
+                  {% elif r.risk_level == "HIGH" %}<span class="badge bg-warning text-dark">HIGH</span>
+                  {% elif r.risk_level == "MEDIUM" %}<span class="badge bg-info text-dark">MEDIUM</span>
+                  {% else %}<span class="badge bg-success">LOW</span>{% endif %}
+                </td>
+                <td><span class="text-muted small">{{ r.queried_at|date:"Y-m-d H:i" }}</span></td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+    {% endif %}
+
+  </div>
+{% endif %}
+{% endblock %}

@@ -1,0 +1,199 @@
+{% extends "base.html" %}
+{% block title %}Threat Report — {{ report.indicator }}{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+  <div class="col-lg-10">
+
+    <!-- Verdict banner -->
+    <div class="verdict-banner verdict-{{ report.risk_level|lower }} mb-4">
+      <div class="verdict-icon">
+        {% if report.indicator_type == "IP" %}<i class="bi bi-hdd-network-fill"></i>
+        {% elif report.indicator_type == "DOMAIN" %}<i class="bi bi-globe2"></i>
+        {% elif report.indicator_type == "URL" %}<i class="bi bi-link-45deg"></i>
+        {% else %}<i class="bi bi-file-earmark-binary-fill"></i>{% endif %}
+      </div>
+      <div style="min-width:0;">
+        <div class="verdict-label">{{ report.indicator_type }} — Risk Level</div>
+        <div class="verdict-level">{{ report.risk_level }}</div>
+        <div class="verdict-domain text-truncate" style="max-width:420px;">{{ report.indicator }}</div>
+      </div>
+      <div class="ms-auto text-end flex-shrink-0">
+        <div class="verdict-label">Queried</div>
+        <div class="small">{{ report.queried_at|date:"Y-m-d H:i" }}</div>
+        {% if report.country_code %}
+          <div class="small text-muted mt-1"><i class="bi bi-geo-alt me-1"></i>{{ report.country_code }}</div>
+        {% endif %}
+      </div>
+    </div>
+
+    <div class="row g-4">
+
+      <!-- Left column -->
+      <div class="col-lg-7">
+
+        <!-- VirusTotal card -->
+        <div class="card mb-4">
+          <div class="card-header"><i class="bi bi-virus me-2"></i>VirusTotal Analysis</div>
+          <div class="card-body">
+            {% if report.vt_positives is not None %}
+              <div class="d-flex align-items-center justify-content-between mb-2">
+                <span class="text-muted small">Engines flagged</span>
+                <span class="fw-bold {% if report.vt_positives >= 5 %}text-danger{% elif report.vt_positives >= 2 %}text-warning{% elif report.vt_positives >= 1 %}text-info{% else %}text-success{% endif %}">
+                  {{ report.vt_positives }} / {{ report.vt_total }}
+                </span>
+              </div>
+              <div class="progress mb-3" style="height:10px;">
+                <div class="progress-bar {% if report.vt_positives >= 5 %}bg-danger{% elif report.vt_positives >= 2 %}bg-warning{% elif report.vt_positives >= 1 %}bg-info{% else %}bg-success{% endif %}"
+                     style="width:0%" data-target="{{ vt_pct }}">
+                </div>
+              </div>
+              {% if flagged_engines %}
+                <div class="small text-muted mb-2">Flagged by:</div>
+                <div class="d-flex flex-wrap gap-2">
+                  {% for e in flagged_engines %}
+                    <span class="badge {% if e.category == 'malicious' %}bg-danger{% else %}bg-warning text-dark{% endif %}">
+                      <i class="bi bi-bug-fill me-1"></i>{{ e.name }}
+                    </span>
+                  {% endfor %}
+                </div>
+              {% else %}
+                <div class="text-success small"><i class="bi bi-check-circle-fill me-1"></i>No engines flagged this indicator</div>
+              {% endif %}
+            {% else %}
+              <div class="text-muted small">No VirusTotal data available</div>
+            {% endif %}
+          </div>
+        </div>
+
+        <!-- Indicator details -->
+        <div class="card mb-4">
+          <div class="card-header"><i class="bi bi-card-list me-2"></i>Indicator Details</div>
+          <div class="card-body p-0">
+            <table class="table table-sm mb-0">
+              <tbody>
+                <tr>
+                  <th style="width:40%">Indicator</th>
+                  <td class="text-break">
+                    {{ report.indicator }}
+                    <button class="btn btn-sm p-0 ms-2" onclick="navigator.clipboard.writeText('{{ report.indicator }}')" title="Copy">
+                      <i class="bi bi-clipboard text-muted"></i>
+                    </button>
+                  </td>
+                </tr>
+                <tr><th>Type</th><td><span class="badge bg-secondary">{{ report.indicator_type }}</span></td></tr>
+                <tr><th>Country</th><td>{{ report.country_code|default:"N/A" }}</td></tr>
+                <tr><th>ISP</th><td>{{ report.isp|default:"N/A" }}</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- Right column -->
+      <div class="col-lg-5">
+
+        <!-- AbuseIPDB card (IP only) -->
+        {% if report.indicator_type == "IP" %}
+        <div class="card mb-4">
+          <div class="card-header"><i class="bi bi-shield-exclamation me-2"></i>AbuseIPDB</div>
+          <div class="card-body">
+            {% if report.abuse_confidence_score is not None %}
+              <div class="d-flex align-items-center justify-content-between mb-1">
+                <span class="text-muted small">Abuse Confidence Score</span>
+                <span class="fw-bold {% if report.abuse_confidence_score >= 75 %}text-danger{% elif report.abuse_confidence_score >= 50 %}text-warning{% elif report.abuse_confidence_score >= 25 %}text-info{% else %}text-success{% endif %}">
+                  {{ report.abuse_confidence_score }}%
+                </span>
+              </div>
+              <div class="progress mb-3" style="height:10px;">
+                <div class="progress-bar {% if report.abuse_confidence_score >= 75 %}bg-danger{% elif report.abuse_confidence_score >= 50 %}bg-warning{% elif report.abuse_confidence_score >= 25 %}bg-info{% else %}bg-success{% endif %}"
+                     style="width:0%" data-target="{{ report.abuse_confidence_score }}">
+                </div>
+              </div>
+              <div class="d-flex justify-content-between small text-muted">
+                <span><i class="bi bi-file-earmark-text me-1"></i>{{ report.abuse_total_reports|default:0 }} total reports</span>
+                {% if report.country_code %}<span><i class="bi bi-geo-alt me-1"></i>{{ report.country_code }}</span>{% endif %}
+              </div>
+            {% else %}
+              <div class="text-muted small">No AbuseIPDB data available</div>
+            {% endif %}
+          </div>
+        </div>
+        {% endif %}
+
+        <!-- Security summary -->
+        <div class="card mb-4">
+          <div class="card-header"><i class="bi bi-shield-check me-2"></i>Security Summary</div>
+          <div class="card-body p-0">
+            <ul class="check-list">
+              <li class="check-item">
+                <span class="check-icon {% if report.vt_positives == 0 %}check-pass{% elif report.vt_positives >= 2 %}check-fail{% else %}check-warn{% endif %}">
+                  <i class="bi bi-{% if report.vt_positives == 0 %}check-circle-fill{% elif report.vt_positives >= 2 %}x-circle-fill{% else %}exclamation-circle-fill{% endif %}"></i>
+                </span>
+                <span>VirusTotal</span>
+                <span class="ms-auto small text-muted">{{ report.vt_positives|default:"N/A" }} detections</span>
+              </li>
+              {% if report.indicator_type == "IP" %}
+              <li class="check-item">
+                <span class="check-icon {% if report.abuse_confidence_score is not None and report.abuse_confidence_score < 25 %}check-pass{% elif report.abuse_confidence_score is not None and report.abuse_confidence_score >= 50 %}check-fail{% elif report.abuse_confidence_score is not None %}check-warn{% else %}check-neutral{% endif %}">
+                  <i class="bi bi-{% if report.abuse_confidence_score is not None and report.abuse_confidence_score < 25 %}check-circle-fill{% elif report.abuse_confidence_score is not None and report.abuse_confidence_score >= 50 %}x-circle-fill{% elif report.abuse_confidence_score is not None %}exclamation-circle-fill{% else %}dash-circle-fill{% endif %}"></i>
+                </span>
+                <span>AbuseIPDB</span>
+                <span class="ms-auto small text-muted">{{ report.abuse_confidence_score|default:"N/A" }}{% if report.abuse_confidence_score is not None %}%{% endif %}</span>
+              </li>
+              {% endif %}
+              <li class="check-item">
+                <span class="check-icon {% if report.country_code %}check-pass{% else %}check-neutral{% endif %}">
+                  <i class="bi bi-{% if report.country_code %}check-circle-fill{% else %}dash-circle-fill{% endif %}"></i>
+                </span>
+                <span>Geolocation</span>
+                <span class="ms-auto small text-muted">{{ report.country_code|default:"Unknown" }}</span>
+              </li>
+            </ul>
+          </div>
+        </div>
+
+        <!-- Lookup another -->
+        <div class="card">
+          <div class="card-header"><i class="bi bi-arrow-repeat me-2"></i>Lookup Another</div>
+          <div class="card-body">
+            <form method="post" action="{% url 'intel:form' %}">
+              {% csrf_token %}
+              <div class="input-group">
+                {{ form.indicator }}
+                <button type="submit" class="btn btn-danger">
+                  <i class="bi bi-binoculars-fill"></i>
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  // Animate all progress bars
+  window.addEventListener('load', () => {
+    document.querySelectorAll('.progress-bar[data-target]').forEach(bar => {
+      const target = bar.getAttribute('data-target');
+      setTimeout(() => { bar.style.transition = 'width 0.8s ease'; bar.style.width = target + '%'; }, 100);
+    });
+  });
+
+  // Copy feedback
+  document.querySelectorAll('[onclick*="clipboard"]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const icon = btn.querySelector('i');
+      icon.className = 'bi bi-clipboard-check text-success';
+      setTimeout(() => { icon.className = 'bi bi-clipboard text-muted'; }, 1500);
+    });
+  });
+</script>
+{% endblock %}

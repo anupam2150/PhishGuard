@@ -1,0 +1,356 @@
+<!DOCTYPE html>
+<html lang="en" data-bs-theme="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>PhishGuard — {% block title %}Detect. Analyze. Defend.{% endblock %}</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" />
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet" />
+  {% load static %}
+  <link rel="stylesheet" href="{% static 'css/custom.css' %}?v=11" />
+</head>
+<body>
+
+<!-- ── Top Navbar ── -->
+<header class="topnav">
+  <button class="sidebar-toggle" id="sidebarToggle" title="Toggle navigation">
+    <i class="bi bi-list"></i>
+  </button>
+  <a href="{% url 'dashboard:overview' %}" class="brand">
+    <i class="bi bi-shield-fill-exclamation text-danger"></i>
+    <span class="fw-bold ms-2">PhishGuard</span>
+  </a>
+  <form class="d-flex mx-3 flex-grow-1 topnav-search" style="max-width:400px;"
+        action="{% url 'dashboard:global_search' %}" method="get">
+    <div class="input-group">
+      <input type="text" name="q"
+             class="form-control form-control-sm"
+             placeholder="Search domains, IPs, emails..."
+             value="{{ request.GET.q|default:'' }}"
+             autocomplete="off" minlength="2" />
+      <button class="btn btn-outline-secondary btn-sm" type="submit">
+        <i class="bi bi-search"></i>
+      </button>
+    </div>
+  </form>
+  <button onclick="toggleNewsPanel()" class="sidebar-toggle ms-auto" title="Toggle news panel">
+    <i class="bi bi-newspaper" id="newsPanelNavIcon"></i>
+  </button>
+</header>
+
+<!-- ── Body below topnav ── -->
+<div class="wrapper">
+
+  <!-- Left Sidebar -->
+  <nav class="sidebar" id="sidebar">
+    <ul class="sidebar-nav">
+      <li>
+        <a href="{% url 'dashboard:overview' %}" class="sidebar-link {% if request.path == '/' %}active{% endif %}">
+          <i class="bi bi-speedometer2"></i>
+          <span class="sidebar-label">Dashboard</span>
+        </a>
+      </li>
+      <li>
+        <a href="{% url 'scanner:scan' %}" class="sidebar-link {% if '/scanner/' in request.path %}active{% endif %}">
+          <i class="bi bi-link-45deg"></i>
+          <span class="sidebar-label">URL Scanner</span>
+          {% if sidebar_counts.scanner > 0 %}
+            <span class="sidebar-badge {% if sidebar_counts.scanner > 10 %}bg-danger{% else %}bg-secondary{% endif %}">
+              {{ sidebar_counts.scanner }}
+            </span>
+          {% endif %}
+        </a>
+      </li>
+      <li>
+        <a href="{% url 'emailparser:form' %}" class="sidebar-link {% if '/email/' in request.path %}active{% endif %}">
+          <i class="bi bi-envelope-open"></i>
+          <span class="sidebar-label">Email Analyzer</span>
+          {% if sidebar_counts.email > 0 %}
+            <span class="sidebar-badge {% if sidebar_counts.email > 10 %}bg-danger{% else %}bg-secondary{% endif %}">
+              {{ sidebar_counts.email }}
+            </span>
+          {% endif %}
+        </a>
+      </li>
+      <li>
+        <a href="{% url 'intel:form' %}" class="sidebar-link {% if '/intel/' in request.path %}active{% endif %}">
+          <i class="bi bi-search"></i>
+          <span class="sidebar-label">Threat Intel</span>
+          {% if sidebar_counts.intel > 0 %}
+            <span class="sidebar-badge {% if sidebar_counts.intel > 10 %}bg-danger{% else %}bg-secondary{% endif %}">
+              {{ sidebar_counts.intel }}
+            </span>
+          {% endif %}
+        </a>
+      </li>
+    </ul>
+    <div class="sidebar-footer">
+      <span class="sidebar-label small text-muted">Detect. Analyze. Defend.</span>
+    </div>
+  </nav>
+
+  <!-- Main content -->
+  <div class="main-content" id="mainContent">
+    <div class="content-area">
+      {% if messages %}
+        {% for message in messages %}
+          <div class="alert alert-{% if message.tags == 'error' %}danger{% else %}{{ message.tags }}{% endif %} alert-dismissible fade show" role="alert">
+            {{ message }}
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+          </div>
+        {% endfor %}
+      {% endif %}
+      {% block content %}{% endblock %}
+    </div>
+    <footer class="text-center py-3 mt-4">
+      <small><i class="bi bi-shield-fill-exclamation text-danger"></i> PhishGuard &mdash; Detect. Analyze. Defend.</small>
+    </footer>
+  </div>
+
+  <!-- Right News Panel -->
+  <aside class="news-panel" id="newsPanel">
+
+    <!-- Expanded header -->
+    <div class="news-panel-header" id="newsPanelHeader">
+      <div class="w-100">
+        <div class="d-flex align-items-center justify-content-between">
+          <span><i class="bi bi-newspaper me-1"></i> Cyber News</span>
+          <button onclick="fetchNews(true)" class="btn btn-sm btn-outline-secondary p-0 px-1"
+                  title="Refresh" style="font-size:0.7rem; line-height:1.5;">
+            <i class="bi bi-arrow-clockwise"></i>
+          </button>
+        </div>
+        <div id="news-timestamp" class="text-secondary" style="font-size:0.7rem;">Checking...</div>
+      </div>
+    </div>
+
+    <!-- Collapsed header (icon only) -->
+    <div class="news-panel-header-collapsed" id="newsPanelHeaderCollapsed" style="display:none;">
+    </div>
+
+    <div class="news-panel-body" id="newsPanelBody">
+      <div class="text-center py-5 text-muted">
+        <div class="spinner-border spinner-border-sm mb-2" role="status"></div>
+        <div class="small">Loading news...</div>
+      </div>
+    </div>
+  </aside>
+
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
+<script>
+  // Clear any stale mobile-set collapsed state when on desktop
+  if (window.innerWidth > 768 && localStorage.getItem('newsPanel') === 'collapsed') {
+    // Only keep collapsed if user explicitly set it on desktop (not auto-set by mobile)
+    // We distinguish by checking if 'newsPanelDesktopCollapsed' key exists
+    if (!localStorage.getItem('newsPanelDesktopCollapsed')) {
+      localStorage.removeItem('newsPanel');
+    }
+  }
+
+  /* ── Left sidebar ── */
+  const sidebar     = document.getElementById('sidebar');
+  const mainContent = document.getElementById('mainContent');
+  const toggle      = document.getElementById('sidebarToggle');
+
+  function isMobile() { return window.innerWidth <= 768; }
+
+  // Apply left sidebar state
+  function applySidebar(collapsed) {
+    if (isMobile()) {
+      // Mobile: overlay mode
+      sidebar.classList.remove('collapsed');
+      if (collapsed) {
+        sidebar.classList.remove('mobile-open');
+        mainContent.classList.remove('collapsed');
+      } else {
+        sidebar.classList.add('mobile-open');
+      }
+    } else {
+      sidebar.classList.remove('mobile-open');
+      if (collapsed) {
+        sidebar.classList.add('collapsed');
+        mainContent.classList.add('collapsed');
+      } else {
+        sidebar.classList.remove('collapsed');
+        mainContent.classList.remove('collapsed');
+      }
+    }
+  }
+
+  // Restore left sidebar state
+  if (!isMobile()) {
+    applySidebar(localStorage.getItem('sidebar') === 'collapsed');
+  }
+
+  toggle.addEventListener('click', () => {
+    if (isMobile()) {
+      const open = sidebar.classList.contains('mobile-open');
+      applySidebar(open); // toggle
+    } else {
+      const collapsed = !sidebar.classList.contains('collapsed');
+      applySidebar(collapsed);
+      localStorage.setItem('sidebar', collapsed ? 'collapsed' : 'expanded');
+    }
+  });
+
+  /* ── Right news panel ── */
+  const newsPanel                = document.getElementById('newsPanel');
+  const newsPanelHeader          = document.getElementById('newsPanelHeader');
+  const newsPanelHeaderCollapsed = document.getElementById('newsPanelHeaderCollapsed');
+  const newsPanelBody            = document.getElementById('newsPanelBody');
+
+  function applyNewsCollapsed(collapsed) {
+    const navIcon = document.getElementById('newsPanelNavIcon');
+    if (isMobile()) {
+      newsPanel.classList.remove('collapsed');
+      mainContent.classList.remove('news-collapsed');
+      if (collapsed) {
+        newsPanel.classList.remove('mobile-open');
+      } else {
+        newsPanel.classList.add('mobile-open');
+        newsPanelHeader.style.display          = 'block';
+        newsPanelHeaderCollapsed.style.display = 'none';
+        newsPanelBody.style.display            = 'block';
+      }
+      if (navIcon) navIcon.style.color = collapsed ? '#8b949e' : '#58a6ff';
+      return;
+    }
+    if (collapsed) {
+      newsPanel.classList.add('collapsed');
+      newsPanel.classList.remove('mobile-open');
+      mainContent.classList.add('news-collapsed');
+      newsPanelHeader.style.display          = 'none';
+      newsPanelHeaderCollapsed.style.display = 'block';
+      newsPanelBody.style.display            = 'none';
+      if (navIcon) navIcon.style.color = '#8b949e';
+    } else {
+      newsPanel.classList.remove('collapsed');
+      mainContent.classList.remove('news-collapsed');
+      newsPanelHeader.style.display          = 'block';
+      newsPanelHeaderCollapsed.style.display = 'none';
+      newsPanelBody.style.display            = 'block';
+      if (navIcon) navIcon.style.color = '#58a6ff';
+    }
+  }
+
+  function toggleNewsPanel() {
+    const collapsed = isMobile()
+      ? newsPanel.classList.contains('mobile-open')
+      : !newsPanel.classList.contains('collapsed');
+    applyNewsCollapsed(collapsed);
+    if (!isMobile()) {
+      localStorage.setItem('newsPanel', collapsed ? 'collapsed' : 'expanded');
+      localStorage.setItem('newsPanelDesktopCollapsed', collapsed ? '1' : '');
+    }
+  }
+
+  // Init: desktop always open by default unless user explicitly collapsed it
+  if (isMobile()) {
+    applyNewsCollapsed(true);
+  } else {
+    // Only collapse if user previously chose to collapse — default is expanded
+    applyNewsCollapsed(localStorage.getItem('newsPanel') === 'collapsed');
+  }
+
+  // On resize: re-apply correct mode
+  window.addEventListener('resize', () => {
+    const navIcon = document.getElementById('newsPanelNavIcon');
+    if (isMobile()) {
+      // Close both overlays, remove all desktop margins
+      newsPanel.classList.remove('collapsed', 'mobile-open');
+      sidebar.classList.remove('mobile-open');
+      mainContent.classList.remove('collapsed', 'news-collapsed');
+      newsPanelHeader.style.display          = 'block';
+      newsPanelHeaderCollapsed.style.display = 'none';
+      newsPanelBody.style.display            = 'block';
+      if (navIcon) navIcon.style.color = '#8b949e';
+    } else {
+      // Restore desktop state from localStorage
+      newsPanel.classList.remove('mobile-open');
+      sidebar.classList.remove('mobile-open');
+      applySidebar(localStorage.getItem('sidebar') === 'collapsed');
+      applyNewsCollapsed(localStorage.getItem('newsPanel') === 'collapsed');
+    }
+  });
+
+  /* ── News timestamp ── */
+  function updateNewsTimestamp() {
+    const fetchedAt = localStorage.getItem('news_fetched_at');
+    const el = document.getElementById('news-timestamp');
+    if (!fetchedAt || !el) return;
+    const diffMs   = Date.now() - parseInt(fetchedAt);
+    const diffMins = Math.floor(diffMs / 60000);
+    if (diffMins === 0)      el.textContent = 'Updated just now';
+    else if (diffMins === 1) el.textContent = 'Updated 1 minute ago';
+    else if (diffMins < 60)  el.textContent = `Updated ${diffMins} minutes ago`;
+    else {
+      const h = Math.floor(diffMins / 60);
+      el.textContent = `Updated ${h} hour${h > 1 ? 's' : ''} ago`;
+    }
+    if (diffMins >= 10) {
+      el.innerHTML += ' <span class="text-warning">(refreshing...)</span>';
+    }
+  }
+
+  /* ── News fetch with cache ── */
+  const NEWS_TTL = 10 * 60 * 1000;
+
+  function fetchNews(forceRefresh = false) {
+    const cached   = localStorage.getItem('newsCache');
+    const cachedAt = parseInt(localStorage.getItem('newsCachedAt') || '0');
+    const now      = Date.now();
+
+    if (!forceRefresh && cached && (now - cachedAt) < NEWS_TTL) {
+      renderNews(JSON.parse(cached));
+      updateNewsTimestamp();
+      return;
+    }
+
+    fetch('/news-feed/')
+      .then(r => r.json())
+      .then(articles => {
+        localStorage.setItem('newsCache', JSON.stringify(articles));
+        localStorage.setItem('newsCachedAt', now.toString());
+        localStorage.setItem('news_fetched_at', now.toString());
+        renderNews(articles);
+        updateNewsTimestamp();
+      })
+      .catch(() => {
+        document.getElementById('newsPanelBody').innerHTML =
+          '<div class="text-center py-4 text-muted small">Failed to load news.</div>';
+      });
+  }
+
+  function renderNews(articles) {
+    const body = document.getElementById('newsPanelBody');
+    if (!articles.length) {
+      body.innerHTML = `<div class="text-center py-4 text-muted small px-3">
+        <i class="bi bi-newspaper d-block fs-3 mb-2"></i>
+        No news available. Add <code>NEWS_API_KEY</code> to <code>.env</code>.
+        <div class="mt-1"><a href="https://newsapi.org/register" target="_blank">Get free key</a></div>
+      </div>`;
+      return;
+    }
+    body.innerHTML = articles.map(a => `
+      <div class="news-item">
+        ${a.image ? `<img src="${a.image}" class="news-item-img" onerror="this.style.display='none'" alt="">` : ''}
+        <div class="news-item-body">
+          <div class="news-item-source">${a.source} &middot; ${a.date}</div>
+          <a href="${a.url}" target="_blank" rel="noopener" class="news-item-title">${a.title}</a>
+          ${a.desc ? `<p class="news-item-desc">${a.desc}</p>` : ''}
+        </div>
+      </div>
+    `).join('');
+  }
+
+  fetchNews();
+  updateNewsTimestamp();
+  setInterval(updateNewsTimestamp, 60000);
+  setInterval(() => fetchNews(true), NEWS_TTL);
+</script>
+{% block scripts %}{% endblock %}
+</body>
+</html>

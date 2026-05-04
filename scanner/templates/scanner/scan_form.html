@@ -1,0 +1,114 @@
+{% extends "base.html" %}
+{% block title %}URL Scanner{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+  <div class="col-lg-8">
+
+    <!-- Hero scan card -->
+    <div class="card mb-4">
+      <div class="card-header d-flex align-items-center gap-2">
+        <i class="bi bi-shield-fill-check text-danger fs-5"></i>
+        <h5 class="mb-0">URL / Domain Phishing Scanner</h5>
+      </div>
+      <div class="card-body">
+        <form method="post" novalidate id="scanForm">
+          {% csrf_token %}
+          <div class="input-group input-group-lg mb-2">
+            {{ form.url }}
+            <button type="submit" class="btn btn-danger px-4" id="scanBtn">
+              <span id="scanBtnText"><i class="bi bi-shield-fill-check me-1"></i> Scan</span>
+              <span id="scanBtnLoading" class="d-none">
+                <span class="spinner-border spinner-border-sm me-1"></span> Scanning...
+              </span>
+            </button>
+          </div>
+          {% if form.url.errors %}
+            <div class="text-danger small">{{ form.url.errors|join:", " }}</div>
+          {% endif %}
+          <div class="text-muted small mt-1">
+            <i class="bi bi-info-circle me-1"></i>Checks VirusTotal, Google Safe Browsing, and WHOIS
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <!-- Feature highlights -->
+    <div class="row g-3 mb-4">
+      <div class="col-md-4">
+        <div class="feature-tile">
+          <i class="bi bi-virus text-danger"></i>
+          <div>
+            <div class="fw-semibold">VirusTotal</div>
+            <div class="text-muted small">90+ AV engines</div>
+          </div>
+        </div>
+      </div>
+      <div class="col-md-4">
+        <div class="feature-tile">
+          <i class="bi bi-google text-info"></i>
+          <div>
+            <div class="fw-semibold">Safe Browsing</div>
+            <div class="text-muted small">Google threat DB</div>
+          </div>
+        </div>
+      </div>
+      <div class="col-md-4">
+        <div class="feature-tile">
+          <i class="bi bi-globe2 text-success"></i>
+          <div>
+            <div class="fw-semibold">WHOIS Lookup</div>
+            <div class="text-muted small">Domain age & registrar</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Recent scans -->
+    {% if recent_scans %}
+    <div class="card">
+      <div class="card-header d-flex align-items-center justify-content-between">
+        <span><i class="bi bi-clock-history me-2"></i>Recent Scans</span>
+        <span class="badge bg-secondary">{{ recent_scans|length }}</span>
+      </div>
+      <div class="card-body p-0">
+        <table class="table table-sm table-hover mb-0">
+          <thead><tr><th>URL</th><th>Risk</th><th>VT</th><th>Date</th></tr></thead>
+          <tbody>
+            {% for s in recent_scans %}
+            <tr>
+              <td><a href="{% url 'scanner:result' s.pk %}" class="text-truncate d-inline-block" style="max-width:260px;">{{ s.url }}</a></td>
+              <td>
+                {% if s.risk_level == "CRITICAL" %}<span class="badge bg-danger">CRITICAL</span>
+                {% elif s.risk_level == "HIGH" %}<span class="badge bg-warning text-dark">HIGH</span>
+                {% elif s.risk_level == "MEDIUM" %}<span class="badge bg-info text-dark">MEDIUM</span>
+                {% else %}<span class="badge bg-success">LOW</span>{% endif %}
+              </td>
+              <td><span class="text-muted small">{{ s.vt_positives }}/{{ s.vt_total }}</span></td>
+              <td><span class="text-muted small">{{ s.scanned_at|date:"m/d H:i" }}</span></td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+    {% endif %}
+
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  document.getElementById('scanForm').addEventListener('submit', function() {
+    document.getElementById('scanBtnText').classList.add('d-none');
+    document.getElementById('scanBtnLoading').classList.remove('d-none');
+    document.getElementById('scanBtn').disabled = true;
+  });
+  {% if prefill %}
+  document.addEventListener('DOMContentLoaded', function() {
+    document.getElementById('scanForm').requestSubmit();
+  });
+  {% endif %}
+</script>
+{% endblock %}

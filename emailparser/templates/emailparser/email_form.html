@@ -1,0 +1,122 @@
+{% extends "base.html" %}
+{% block title %}Email Header Analyzer{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+  <div class="col-lg-9">
+
+    <!-- Hero card -->
+    <div class="card mb-4">
+      <div class="card-header d-flex align-items-center gap-2">
+        <i class="bi bi-envelope-open text-danger fs-5"></i>
+        <h5 class="mb-0">Email Header Analyzer</h5>
+      </div>
+      <div class="card-body">
+        <form method="post" novalidate id="emailForm">
+          {% csrf_token %}
+          <div class="mb-2">
+            {{ form.raw_headers }}
+            {% if form.raw_headers.errors %}
+              <div class="text-danger small mt-1">{{ form.raw_headers.errors|join:", " }}</div>
+            {% endif %}
+          </div>
+          <div class="d-flex align-items-center justify-content-between">
+            <span class="text-muted small"><i class="bi bi-info-circle me-1"></i>Paste raw headers from your email client</span>
+            <button type="submit" class="btn btn-danger px-4" id="analyzeBtn">
+              <span id="analyzeBtnText"><i class="bi bi-search me-1"></i>Analyze</span>
+              <span id="analyzeBtnLoading" class="d-none">
+                <span class="spinner-border spinner-border-sm me-1"></span>Analyzing...
+              </span>
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <!-- Feature tiles -->
+    <div class="row g-3 mb-4">
+      <div class="col-md-3">
+        <div class="feature-tile">
+          <i class="bi bi-shield-check text-success"></i>
+          <div><div class="fw-semibold">SPF</div><div class="text-muted small">Sender Policy</div></div>
+        </div>
+      </div>
+      <div class="col-md-3">
+        <div class="feature-tile">
+          <i class="bi bi-key text-info"></i>
+          <div><div class="fw-semibold">DKIM</div><div class="text-muted small">Signature check</div></div>
+        </div>
+      </div>
+      <div class="col-md-3">
+        <div class="feature-tile">
+          <i class="bi bi-patch-check text-warning"></i>
+          <div><div class="fw-semibold">DMARC</div><div class="text-muted small">Policy alignment</div></div>
+        </div>
+      </div>
+      <div class="col-md-3">
+        <div class="feature-tile">
+          <i class="bi bi-diagram-3 text-danger"></i>
+          <div><div class="fw-semibold">Relay Hops</div><div class="text-muted small">Route tracing</div></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Recent analyses -->
+    {% if recent_scans %}
+    <div class="card">
+      <div class="card-header d-flex align-items-center justify-content-between">
+        <span><i class="bi bi-clock-history me-2"></i>Recent Analyses</span>
+        <span class="badge bg-secondary">{{ recent_scans|length }}</span>
+      </div>
+      <div class="card-body p-0">
+        <table class="table table-sm table-hover mb-0">
+          <thead><tr><th>Sender</th><th>SPF</th><th>DKIM</th><th>DMARC</th><th>Risk</th><th>Date</th></tr></thead>
+          <tbody>
+            {% for s in recent_scans %}
+            <tr>
+              <td><a href="{% url 'emailparser:result' s.pk %}" class="text-truncate d-inline-block" style="max-width:200px;">{{ s.sender }}</a></td>
+              <td><span class="badge {% if s.spf_result == 'pass' %}bg-success{% elif s.spf_result == 'fail' %}bg-danger{% else %}bg-secondary{% endif %}">{{ s.spf_result }}</span></td>
+              <td><span class="badge {% if s.dkim_result == 'pass' %}bg-success{% elif s.dkim_result == 'fail' %}bg-danger{% else %}bg-secondary{% endif %}">{{ s.dkim_result }}</span></td>
+              <td><span class="badge {% if s.dmarc_result == 'pass' %}bg-success{% elif s.dmarc_result == 'fail' %}bg-danger{% else %}bg-secondary{% endif %}">{{ s.dmarc_result }}</span></td>
+              <td>
+                {% if s.risk_level == "HIGH" %}<span class="badge bg-danger">HIGH</span>
+                {% elif s.risk_level == "MEDIUM" %}<span class="badge bg-warning text-dark">MEDIUM</span>
+                {% else %}<span class="badge bg-success">LOW</span>{% endif %}
+              </td>
+              <td><span class="text-muted small">{{ s.submitted_at|date:"m/d H:i" }}</span></td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+    {% endif %}
+
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  document.getElementById('emailForm').addEventListener('submit', function() {
+    document.getElementById('analyzeBtnText').classList.add('d-none');
+    document.getElementById('analyzeBtnLoading').classList.remove('d-none');
+    document.getElementById('analyzeBtn').disabled = true;
+  });
+
+  // Auto-expand textarea on paste/input
+  const ta = document.querySelector('textarea');
+  if (ta) {
+    ta.addEventListener('input', function() {
+      this.style.height = 'auto';
+      this.style.height = this.scrollHeight + 'px';
+    });
+    ta.addEventListener('paste', function() {
+      setTimeout(() => {
+        this.style.height = 'auto';
+        this.style.height = this.scrollHeight + 'px';
+      }, 10);
+    });
+  }
+</script>
+{% endblock %}

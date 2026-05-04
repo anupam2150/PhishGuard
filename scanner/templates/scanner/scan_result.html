@@ -1,0 +1,188 @@
+{% extends "base.html" %}
+{% block title %}Scan Result — {{ result.domain }}{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+  <div class="col-lg-9">
+
+    <!-- Risk verdict banner -->
+    <div class="verdict-banner verdict-{{ result.risk_level|lower }} mb-4">
+      <div class="verdict-icon">
+        {% if result.risk_level == "CRITICAL" %}<i class="bi bi-x-octagon-fill"></i>
+        {% elif result.risk_level == "HIGH" %}<i class="bi bi-exclamation-triangle-fill"></i>
+        {% elif result.risk_level == "MEDIUM" %}<i class="bi bi-exclamation-circle-fill"></i>
+        {% else %}<i class="bi bi-shield-fill-check"></i>{% endif %}
+      </div>
+      <div>
+        <div class="verdict-label">Risk Level</div>
+        <div class="verdict-level">{{ result.risk_level }}</div>
+        <div class="verdict-domain">{{ result.domain }}</div>
+      </div>
+      <div class="ms-auto text-end">
+        <div class="verdict-label">Scanned</div>
+        <div class="small">{{ result.scanned_at|date:"Y-m-d H:i" }}</div>
+      </div>
+    </div>
+
+    <div class="row g-4">
+
+      <!-- Left column -->
+      <div class="col-lg-7">
+
+        <!-- VirusTotal score card -->
+        <div class="card mb-4">
+          <div class="card-header"><i class="bi bi-virus me-2"></i>VirusTotal Analysis</div>
+          <div class="card-body">
+            <div class="d-flex align-items-center justify-content-between mb-2">
+              <span class="text-muted small">Engines flagged</span>
+              <span class="fw-bold {% if result.vt_positives >= 5 %}text-danger{% elif result.vt_positives >= 2 %}text-warning{% elif result.vt_positives >= 1 %}text-info{% else %}text-success{% endif %}">
+                {{ result.vt_positives }} / {{ result.vt_total }}
+              </span>
+            </div>
+            <div class="progress mb-3" style="height:10px;">
+              <div class="progress-bar {% if result.vt_positives >= 5 %}bg-danger{% elif result.vt_positives >= 2 %}bg-warning{% elif result.vt_positives >= 1 %}bg-info{% else %}bg-success{% endif %}"
+                   style="width:{% if result.vt_total %}{{ vt_pct }}{% else %}0{% endif %}%"
+                   data-target="{{ vt_pct }}">
+              </div>
+            </div>
+
+            {% if flagged_engines %}
+            <div class="small text-muted mb-2">Flagged by:</div>
+            <div class="d-flex flex-wrap gap-2">
+              {% for e in flagged_engines %}
+                <span class="badge {% if e.category == 'malicious' %}bg-danger{% else %}bg-warning text-dark{% endif %}">
+                  <i class="bi bi-bug-fill me-1"></i>{{ e.name }}
+                </span>
+              {% endfor %}
+            </div>
+            {% else %}
+            <div class="text-success small"><i class="bi bi-check-circle-fill me-1"></i>No engines flagged this URL</div>
+            {% endif %}
+          </div>
+        </div>
+
+        <!-- Domain info card -->
+        <div class="card mb-4">
+          <div class="card-header"><i class="bi bi-globe2 me-2"></i>Domain Information</div>
+          <div class="card-body p-0">
+            <table class="table table-sm mb-0">
+              <tbody>
+                <tr>
+                  <th style="width:40%">Full URL</th>
+                  <td class="text-break">
+                    {{ result.url }}
+                    <button class="btn btn-sm p-0 ms-2" onclick="navigator.clipboard.writeText('{{ result.url }}')" title="Copy URL">
+                      <i class="bi bi-clipboard text-muted"></i>
+                    </button>
+                  </td>
+                </tr>
+                <tr><th>Domain</th><td>{{ result.domain }}</td></tr>
+                <tr><th>Registrar</th><td>{{ result.whois_registrar|default:"N/A" }}</td></tr>
+                <tr>
+                  <th>Domain Age</th>
+                  <td>
+                    {% if result.domain_age_days is not None %}
+                      {{ result.domain_age_days }} days
+                      {% if result.domain_age_days < 30 %}
+                        <span class="badge bg-warning text-dark ms-1">New domain</span>
+                      {% elif result.domain_age_days < 365 %}
+                        <span class="badge bg-info text-dark ms-1">&lt; 1 year</span>
+                      {% else %}
+                        <span class="badge bg-success ms-1">Established</span>
+                      {% endif %}
+                    {% else %}N/A{% endif %}
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- Right column -->
+      <div class="col-lg-5">
+
+        <!-- Security checks summary -->
+        <div class="card mb-4">
+          <div class="card-header"><i class="bi bi-shield-check me-2"></i>Security Checks</div>
+          <div class="card-body p-0">
+            <ul class="check-list">
+              <li class="check-item">
+                <span class="check-icon {% if result.vt_positives == 0 %}check-pass{% else %}check-fail{% endif %}">
+                  <i class="bi bi-{% if result.vt_positives == 0 %}check-circle-fill{% else %}x-circle-fill{% endif %}"></i>
+                </span>
+                <span>VirusTotal</span>
+                <span class="ms-auto small text-muted">{{ result.vt_positives }} detections</span>
+              </li>
+              <li class="check-item">
+                <span class="check-icon {% if not result.gsb_flagged %}check-pass{% else %}check-fail{% endif %}">
+                  <i class="bi bi-{% if not result.gsb_flagged %}check-circle-fill{% else %}x-circle-fill{% endif %}"></i>
+                </span>
+                <span>Google Safe Browsing</span>
+                <span class="ms-auto small text-muted">{% if result.gsb_flagged %}Flagged{% else %}Clean{% endif %}</span>
+              </li>
+              <li class="check-item">
+                <span class="check-icon {% if result.domain_age_days and result.domain_age_days >= 30 %}check-pass{% elif result.domain_age_days is not None %}check-warn{% else %}check-neutral{% endif %}">
+                  <i class="bi bi-{% if result.domain_age_days and result.domain_age_days >= 30 %}check-circle-fill{% elif result.domain_age_days is not None %}exclamation-circle-fill{% else %}dash-circle-fill{% endif %}"></i>
+                </span>
+                <span>Domain Age</span>
+                <span class="ms-auto small text-muted">
+                  {% if result.domain_age_days is not None %}{{ result.domain_age_days }}d{% else %}Unknown{% endif %}
+                </span>
+              </li>
+              <li class="check-item">
+                <span class="check-icon {% if result.whois_registrar %}check-pass{% else %}check-neutral{% endif %}">
+                  <i class="bi bi-{% if result.whois_registrar %}check-circle-fill{% else %}dash-circle-fill{% endif %}"></i>
+                </span>
+                <span>WHOIS Registrar</span>
+                <span class="ms-auto small text-muted">{% if result.whois_registrar %}Found{% else %}N/A{% endif %}</span>
+              </li>
+            </ul>
+          </div>
+        </div>
+
+        <!-- Scan another -->
+        <div class="card">
+          <div class="card-header"><i class="bi bi-arrow-repeat me-2"></i>Scan Another URL</div>
+          <div class="card-body">
+            <form method="post" action="{% url 'scanner:scan' %}" id="rescanForm">
+              {% csrf_token %}
+              <div class="input-group">
+                {{ scan_form.url }}
+                <button type="submit" class="btn btn-danger">
+                  <i class="bi bi-shield-fill-check"></i>
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  // Animate progress bar on load
+  window.addEventListener('load', () => {
+    const bar = document.querySelector('.progress-bar[data-target]');
+    if (bar) {
+      const target = bar.getAttribute('data-target');
+      setTimeout(() => { bar.style.transition = 'width 0.8s ease'; bar.style.width = target + '%'; }, 100);
+    }
+  });
+
+  // Copy URL feedback
+  document.querySelectorAll('[onclick*="clipboard"]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const icon = btn.querySelector('i');
+      icon.className = 'bi bi-clipboard-check text-success';
+      setTimeout(() => { icon.className = 'bi bi-clipboard text-muted'; }, 1500);
+    });
+  });
+</script>
+{% endblock %}

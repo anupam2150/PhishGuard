@@ -1,0 +1,112 @@
+{% extends "base.html" %}
+{% block title %}Threat Intelligence Lookup{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+  <div class="col-lg-9">
+
+    <!-- Hero card -->
+    <div class="card mb-4">
+      <div class="card-header d-flex align-items-center gap-2">
+        <i class="bi bi-binoculars-fill text-danger fs-5"></i>
+        <h5 class="mb-0">Threat Intelligence Lookup</h5>
+      </div>
+      <div class="card-body">
+        <form method="post" novalidate id="intelForm">
+          {% csrf_token %}
+          <div class="input-group input-group-lg mb-2">
+            {{ form.indicator }}
+            <button type="submit" class="btn btn-danger px-4" id="intelBtn">
+              <span id="intelBtnText"><i class="bi bi-binoculars-fill me-1"></i>Lookup</span>
+              <span id="intelBtnLoading" class="d-none">
+                <span class="spinner-border spinner-border-sm me-1"></span>Looking up...
+              </span>
+            </button>
+          </div>
+          {% if form.indicator.errors %}
+            <div class="text-danger small">{{ form.indicator.errors|join:", " }}</div>
+          {% endif %}
+          <div class="text-muted small mt-1">
+            <i class="bi bi-info-circle me-1"></i>Auto-detects IP, domain, URL, or file hash
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <!-- Indicator type tiles -->
+    <div class="row g-3 mb-4">
+      <div class="col-md-3">
+        <div class="feature-tile">
+          <i class="bi bi-hdd-network text-info"></i>
+          <div><div class="fw-semibold">IP Address</div><div class="text-muted small">AbuseIPDB + VT</div></div>
+        </div>
+      </div>
+      <div class="col-md-3">
+        <div class="feature-tile">
+          <i class="bi bi-globe2 text-success"></i>
+          <div><div class="fw-semibold">Domain</div><div class="text-muted small">VirusTotal</div></div>
+        </div>
+      </div>
+      <div class="col-md-3">
+        <div class="feature-tile">
+          <i class="bi bi-link-45deg text-warning"></i>
+          <div><div class="fw-semibold">URL</div><div class="text-muted small">VirusTotal</div></div>
+        </div>
+      </div>
+      <div class="col-md-3">
+        <div class="feature-tile">
+          <i class="bi bi-file-earmark-binary text-danger"></i>
+          <div><div class="fw-semibold">File Hash</div><div class="text-muted small">VirusTotal</div></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Recent lookups -->
+    {% if recent_reports %}
+    <div class="card">
+      <div class="card-header d-flex align-items-center justify-content-between">
+        <span><i class="bi bi-clock-history me-2"></i>Recent Lookups</span>
+        <span class="badge bg-secondary">{{ recent_reports|length }}</span>
+      </div>
+      <div class="card-body p-0">
+        <table class="table table-sm table-hover mb-0">
+          <thead><tr><th>Indicator</th><th>Type</th><th>Risk</th><th>VT</th><th>Date</th></tr></thead>
+          <tbody>
+            {% for r in recent_reports %}
+            <tr>
+              <td><a href="{% url 'intel:result' r.pk %}" class="text-truncate d-inline-block" style="max-width:200px;">{{ r.indicator }}</a></td>
+              <td><span class="badge bg-secondary">{{ r.indicator_type }}</span></td>
+              <td>
+                {% if r.risk_level == "CRITICAL" %}<span class="badge bg-danger">CRITICAL</span>
+                {% elif r.risk_level == "HIGH" %}<span class="badge bg-warning text-dark">HIGH</span>
+                {% elif r.risk_level == "MEDIUM" %}<span class="badge bg-info text-dark">MEDIUM</span>
+                {% else %}<span class="badge bg-success">LOW</span>{% endif %}
+              </td>
+              <td><span class="text-muted small">{{ r.vt_positives|default:"—" }}/{{ r.vt_total|default:"—" }}</span></td>
+              <td><span class="text-muted small">{{ r.queried_at|date:"m/d H:i" }}</span></td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+    {% endif %}
+
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  document.getElementById('intelForm').addEventListener('submit', function() {
+    document.getElementById('intelBtnText').classList.add('d-none');
+    document.getElementById('intelBtnLoading').classList.remove('d-none');
+    document.getElementById('intelBtn').disabled = true;
+  });
+  {% if prefill %}
+  document.addEventListener('DOMContentLoaded', function() {
+    document.getElementById('intelForm').requestSubmit();
+  });
+  {% endif %}
+</script>
+{% endblock %}

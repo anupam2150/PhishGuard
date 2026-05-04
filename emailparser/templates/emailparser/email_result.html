@@ -1,0 +1,146 @@
+{% extends "base.html" %}
+{% block title %}Email Analysis Result{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+  <div class="col-lg-10">
+
+    <!-- Verdict banner -->
+    <div class="verdict-banner verdict-{% if scan.risk_level == 'HIGH' %}critical{% elif scan.risk_level == 'MEDIUM' %}high{% else %}low{% endif %} mb-4">
+      <div class="verdict-icon">
+        {% if scan.risk_level == "HIGH" %}<i class="bi bi-envelope-x-fill"></i>
+        {% elif scan.risk_level == "MEDIUM" %}<i class="bi bi-envelope-exclamation-fill"></i>
+        {% else %}<i class="bi bi-envelope-check-fill"></i>{% endif %}
+      </div>
+      <div>
+        <div class="verdict-label">Email Risk Level</div>
+        <div class="verdict-level">{{ scan.risk_level }} RISK</div>
+        <div class="verdict-domain text-truncate" style="max-width:400px;">{{ scan.sender }}</div>
+      </div>
+      <div class="ms-auto text-end">
+        <div class="verdict-label">Analyzed</div>
+        <div class="small">{{ scan.submitted_at|date:"Y-m-d H:i" }}</div>
+        <div class="small text-muted mt-1">{{ scan.hop_count }} relay hop{{ scan.hop_count|pluralize }}</div>
+      </div>
+    </div>
+
+    <div class="row g-4">
+
+      <!-- Left column -->
+      <div class="col-lg-7">
+
+        <!-- Auth results -->
+        <div class="card mb-4">
+          <div class="card-header"><i class="bi bi-shield-lock me-2"></i>Authentication Results</div>
+          <div class="card-body p-0">
+            <ul class="check-list">
+              <li class="check-item">
+                <span class="check-icon {% if scan.spf_result == 'pass' %}check-pass{% elif scan.spf_result == 'fail' %}check-fail{% else %}check-neutral{% endif %}">
+                  <i class="bi bi-{% if scan.spf_result == 'pass' %}check-circle-fill{% elif scan.spf_result == 'fail' %}x-circle-fill{% else %}dash-circle-fill{% endif %}"></i>
+                </span>
+                <div>
+                  <div class="fw-semibold small">SPF — Sender Policy Framework</div>
+                  <div class="text-muted" style="font-size:0.75rem;">Verifies the sending server is authorized</div>
+                </div>
+                <span class="ms-auto badge {% if scan.spf_result == 'pass' %}bg-success{% elif scan.spf_result == 'fail' %}bg-danger{% else %}bg-secondary{% endif %}">{{ scan.spf_result }}</span>
+              </li>
+              <li class="check-item">
+                <span class="check-icon {% if scan.dkim_result == 'pass' %}check-pass{% elif scan.dkim_result == 'fail' %}check-fail{% else %}check-neutral{% endif %}">
+                  <i class="bi bi-{% if scan.dkim_result == 'pass' %}check-circle-fill{% elif scan.dkim_result == 'fail' %}x-circle-fill{% else %}dash-circle-fill{% endif %}"></i>
+                </span>
+                <div>
+                  <div class="fw-semibold small">DKIM — DomainKeys Identified Mail</div>
+                  <div class="text-muted" style="font-size:0.75rem;">Validates email signature integrity</div>
+                </div>
+                <span class="ms-auto badge {% if scan.dkim_result == 'pass' %}bg-success{% elif scan.dkim_result == 'fail' %}bg-danger{% else %}bg-secondary{% endif %}">{{ scan.dkim_result }}</span>
+              </li>
+              <li class="check-item">
+                <span class="check-icon {% if scan.dmarc_result == 'pass' %}check-pass{% elif scan.dmarc_result == 'fail' %}check-fail{% else %}check-neutral{% endif %}">
+                  <i class="bi bi-{% if scan.dmarc_result == 'pass' %}check-circle-fill{% elif scan.dmarc_result == 'fail' %}x-circle-fill{% else %}dash-circle-fill{% endif %}"></i>
+                </span>
+                <div>
+                  <div class="fw-semibold small">DMARC — Domain-based Message Authentication</div>
+                  <div class="text-muted" style="font-size:0.75rem;">Policy alignment between SPF/DKIM and From</div>
+                </div>
+                <span class="ms-auto badge {% if scan.dmarc_result == 'pass' %}bg-success{% elif scan.dmarc_result == 'fail' %}bg-danger{% else %}bg-secondary{% endif %}">{{ scan.dmarc_result }}</span>
+              </li>
+            </ul>
+          </div>
+        </div>
+
+        <!-- Header details -->
+        <div class="card mb-4">
+          <div class="card-header"><i class="bi bi-card-list me-2"></i>Header Details</div>
+          <div class="card-body p-0">
+            <table class="table table-sm mb-0">
+              <tbody>
+                <tr><th style="width:35%">From</th><td>{{ scan.sender }}</td></tr>
+                <tr><th>Reply-To</th><td>{{ scan.reply_to|default:"—" }}</td></tr>
+                <tr><th>Return-Path</th><td>{{ scan.return_path|default:"—" }}</td></tr>
+                <tr><th>X-Mailer</th><td>{{ scan.x_mailer|default:"—" }}</td></tr>
+                <tr>
+                  <th>Relay Hops</th>
+                  <td>
+                    {{ scan.hop_count }}
+                    {% if scan.hop_count > 8 %}
+                      <span class="badge bg-warning text-dark ms-1">Excessive</span>
+                    {% endif %}
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- Right column -->
+      <div class="col-lg-5">
+
+        <!-- Suspicious flags -->
+        <div class="card mb-4">
+          <div class="card-header d-flex align-items-center justify-content-between">
+            <span><i class="bi bi-flag me-2"></i>Suspicious Flags</span>
+            <span class="badge {% if scan.suspicious_flags|length >= 3 %}bg-danger{% elif scan.suspicious_flags|length >= 1 %}bg-warning text-dark{% else %}bg-success{% endif %}">
+              {{ scan.suspicious_flags|length }} found
+            </span>
+          </div>
+          <div class="card-body p-0">
+            {% if scan.suspicious_flags %}
+              <ul class="check-list">
+                {% for flag in scan.suspicious_flags %}
+                <li class="check-item">
+                  <span class="check-icon check-fail"><i class="bi bi-exclamation-circle-fill"></i></span>
+                  <span class="small">{{ flag }}</span>
+                </li>
+                {% endfor %}
+              </ul>
+            {% else %}
+              <div class="p-3 text-center">
+                <i class="bi bi-check-circle-fill check-pass fs-3 d-block mb-1"></i>
+                <span class="small text-muted">No suspicious flags detected</span>
+              </div>
+            {% endif %}
+          </div>
+        </div>
+
+        <!-- Analyze another -->
+        <div class="card">
+          <div class="card-header"><i class="bi bi-arrow-repeat me-2"></i>Analyze Another</div>
+          <div class="card-body">
+            <form method="post" action="{% url 'emailparser:form' %}">
+              {% csrf_token %}
+              {{ form.raw_headers }}
+              <button type="submit" class="btn btn-danger w-100 mt-2">
+                <i class="bi bi-search me-1"></i>Analyze Headers
+              </button>
+            </form>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+  </div>
+</div>
+{% endblock %}
