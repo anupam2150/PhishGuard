@@ -1,0 +1,1 @@
+web: gunicorn phishguard.wsgi
