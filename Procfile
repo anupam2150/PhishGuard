@@ -1,1 +1,1 @@
-web: gunicorn phishguard.wsgi
+web: python manage.py migrate && gunicorn phishguard.wsgi
