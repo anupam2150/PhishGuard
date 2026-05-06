@@ -22,7 +22,8 @@
       </div>
     </div>
 
-    <!-- Personal API key -->
+    <!-- Personal API key (admin only) -->
+    {% if request.user.is_staff %}
     <div class="card bg-dark border-secondary mb-4">
       <div class="card-header border-secondary">
         <i class="bi bi-key me-2 text-warning"></i>Personal API Key
@@ -46,6 +47,7 @@
         </form>
       </div>
     </div>
+    {% endif %}
 
     <!-- External API keys -->
     <div class="card bg-dark border-secondary">
