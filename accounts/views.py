@@ -30,8 +30,11 @@ def login_view(request):
 
 
 def logout_view(request):
-    logout(request)
-    return redirect("/accounts/login/")
+    if request.method == "POST":
+        logout(request)
+        messages.success(request, "You have been logged out successfully.")
+        return redirect("/")
+    return redirect("/")
 
 
 @login_required
