@@ -7,7 +7,7 @@ A **Phishing Detection & Threat Intelligence Web Application** built with Python
 ![Bootstrap](https://img.shields.io/badge/Bootstrap-5.3-purple?logo=bootstrap)
 ![License](https://img.shields.io/badge/License-MIT-yellow)
 
-🔗 **Live Demo:** [https://phishgaurd-wo7n.onrender.com](https://phishguard-tool.onrender.com)
+🔗 **Live Demo:** [https://phishguard-tool.onrender.com](https://phishguard-tool.onrender.com)
 
 ---
 
