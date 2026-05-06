@@ -45,6 +45,12 @@ def email_result_view(request, pk):
     except EmailScan.DoesNotExist:
         messages.error(request, "Email scan result not found.")
         return redirect("emailparser:form")
+
+    # Only owner or admin can view
+    if not request.user.is_staff:
+        if scan.user is None or scan.user != request.user:
+            messages.error(request, "You do not have permission to view this result.")
+            return redirect("emailparser:form")
     return render(request, "emailparser/email_result.html", {
         "scan": scan,
         "form": EmailHeaderForm(),

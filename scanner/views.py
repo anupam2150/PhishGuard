@@ -124,6 +124,12 @@ def result_view(request, pk):
         messages.error(request, "Scan result not found.")
         return redirect("scanner:scan")
 
+    # Only owner or admin can view
+    if not request.user.is_staff:
+        if result.user is None or result.user != request.user:
+            messages.error(request, "You do not have permission to view this result.")
+            return redirect("scanner:scan")
+
     engines = []
     results_map = (
         result.raw_vt_response.get("data", {})

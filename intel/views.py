@@ -117,6 +117,18 @@ def intel_result_view(request, pk):
         messages.error(request, "Threat report not found.")
         return redirect("intel:form")
 
+    # Only owner or admin can view
+    if not request.user.is_staff:
+        if report.user is None or report.user != request.user:
+            messages.error(request, "You do not have permission to view this result.")
+            return redirect("intel:form")
+
+    # Only owner or admin can view
+    if not request.user.is_staff:
+        if report.user is None or report.user != request.user:
+            messages.error(request, "You do not have permission to view this result.")
+            return redirect("intel:form")
+
     engines = []
     results_map = report.raw_vt.get("data", {}).get("attributes", {}).get("last_analysis_results", {}) if report.raw_vt else {}
     for engine, data in results_map.items():

@@ -3,7 +3,7 @@ def sidebar_counts(request):
     u = request.user
 
     def _uf(qs):
-        return qs.filter(user=u) if u.is_authenticated else qs.filter(user=None)
+        return qs.filter(user=u) if u.is_authenticated else qs.none()
 
     try:
         from scanner.models import ScanResult
