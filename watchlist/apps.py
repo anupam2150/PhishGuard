@@ -22,14 +22,28 @@ class WatchlistConfig(AppConfig):
         if any(cmd in sys.argv for cmd in ("migrate", "makemigrations", "collectstatic", "shell")):
             return
 
-        self._start_scheduler()
+        # Defer scheduler start to avoid database access during app initialization
+        from django.db import connection
+        from django.db.backends.signals import connection_created
+        
+        def start_scheduler_callback(sender, **kwargs):
+            # Only start once
+            if not hasattr(self, '_scheduler_started'):
+                self._scheduler_started = True
+                self._start_scheduler()
+        
+        # If connection already exists, start immediately
+        if connection.connection is not None:
+            self._start_scheduler()
+        else:
+            # Otherwise wait for first connection
+            connection_created.connect(start_scheduler_callback, weak=False)
 
     def _start_scheduler(self):
         try:
             from apscheduler.schedulers.background import BackgroundScheduler
             from apscheduler.triggers.interval import IntervalTrigger
             from django_apscheduler.jobstores import DjangoJobStore
-            from django_apscheduler.models import DjangoJobExecution
 
             from .scheduler import rescan_watchlist
 
