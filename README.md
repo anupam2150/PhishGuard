@@ -2,7 +2,7 @@
 
 A **full-stack Phishing Detection & Threat Intelligence Platform** built with Python and Django.
 
-![Python](https://img.shields.io/badge/Python-3.11+-blue?logo=python)
+![Python](https://img.shields.io/badge/Python-3.14+-blue?logo=python)
 ![Django](https://img.shields.io/badge/Django-5.x-green?logo=django)
 ![Bootstrap](https://img.shields.io/badge/Bootstrap-5.3-purple?logo=bootstrap)
 ![DRF](https://img.shields.io/badge/DRF-3.15-red?logo=django)
@@ -54,7 +54,7 @@ A **full-stack Phishing Detection & Threat Intelligence Platform** built with Py
 
 ### 👁️ Watchlist & Monitoring
 - Add domains, IPs, or URLs to a personal watchlist
-- **APScheduler** re-scans every 6 hours (runs inside the web process — no extra dyno)
+- **APScheduler** re-scans every 6 hours (runs inside the web process)
 - Creates `WatchlistAlert` on risk level change
 - Sends **email alerts** via Django's `send_mail()`
 - Unacknowledged alert count shown in sidebar badge
@@ -76,7 +76,6 @@ A **full-stack Phishing Detection & Threat Intelligence Platform** built with Py
 - `GET /api/stats/` — user scan statistics
 - Paginated list/detail endpoints for all resources
 - Rate-limited: 100 req/day (authenticated), 10 req/day (anonymous)
-- Browsable API in DEBUG mode
 
 ### 🔐 User Authentication & API Key Management
 - Django auth — register, login, logout
@@ -85,8 +84,8 @@ A **full-stack Phishing Detection & Threat Intelligence Platform** built with Py
 - Personal API key (UUID) for programmatic access
 
 ### ✨ Quality of Life
-- Dark / Light theme toggle (persisted in localStorage)
-- Custom 404, 500, 429 error pages matching the dark theme
+- Permanent dark theme
+- Custom 404, 500, 429 error pages
 - PWA manifest + favicon
 - Copy-to-clipboard buttons on all IOCs
 - Shareable permalinks on every scan result
@@ -97,7 +96,7 @@ A **full-stack Phishing Detection & Threat Intelligence Platform** built with Py
 
 | Layer | Technology |
 |---|---|
-| Backend | Python 3.11+, Django 5.x |
+| Backend | Python 3.14+, Django 5.x |
 | Task Queue | Celery 5.x + Upstash Redis |
 | Scheduling | APScheduler + django-apscheduler |
 | Frontend | Bootstrap 5.3, Chart.js, D3.js v7, Leaflet.js |
@@ -137,8 +136,12 @@ FIELD_ENCRYPTION_KEY=<generate below>
 VT_API_KEY=your-virustotal-api-key
 ```
 
-Generate a Fernet encryption key:
+Generate keys:
 ```bash
+# Django secret key
+python -c "from django.core.management.utils import get_random_secret_key; print(get_random_secret_key())"
+
+# Fernet encryption key
 python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"
 ```
 
@@ -147,9 +150,9 @@ python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().d
 python manage.py migrate
 ```
 
-### 5. (Optional) Seed test correlation data
+### 5. Collect static files
 ```bash
-python manage.py seed_correlation
+python manage.py collectstatic --noinput
 ```
 
 ### 6. Start the development server
@@ -185,13 +188,13 @@ Visit `http://127.0.0.1:8000`
 ## 🚢 Deploying to Render
 
 ### Web Service
-- **Build command:** `pip install -r requirements.txt`
+- **Build command:** `./build.sh`
 - **Start command:** `gunicorn phishguard.wsgi --workers 2 --timeout 120`
-- **Release command:** `python manage.py migrate && python manage.py collectstatic --noinput`
-- Set all environment variables from `.env.example`
+- The `Procfile` release command runs `migrate` and `collectstatic` automatically on every deploy
 
 ### Worker Service (for Bulk Scanner)
-- **Start command:** `celery -A phishguard worker --loglevel=info --concurrency=2`
+- **Build command:** `pip install -r requirements.txt`
+- **Start command:** `celery -A phishguard worker --loglevel=info --concurrency=2 --max-tasks-per-child=50`
 - Same environment variables as the web service
 
 ### Database
@@ -202,15 +205,20 @@ Visit `http://127.0.0.1:8000`
 - Create a free **Upstash Redis** database at [console.upstash.com](https://console.upstash.com)
 - Copy the `rediss://` TLS URL as `REDIS_URL`
 
-### Production environment variables to set
+### Required environment variables on Render
 ```
 DEBUG=False
 ALLOWED_HOSTS=your-app.onrender.com
-DATABASE_URL=postgres://...
+SITE_URL=https://your-app.onrender.com
+DATABASE_URL=postgresql://...
 REDIS_URL=rediss://...
 DJANGO_SECRET_KEY=<strong random key>
 FIELD_ENCRYPTION_KEY=<fernet key>
-SENTRY_DSN=<optional>
+VT_API_KEY=<your key>
+ABUSEIPDB_KEY=<your key>
+GSB_API_KEY=<your key>
+SHODAN_API_KEY=<your key>
+NEWS_API_KEY=<your key>
 ```
 
 ---
@@ -249,9 +257,9 @@ PhishGuard/
 │   └── reports/              # PDF report template
 ├── static/
 │   ├── css/custom.css        # Dark theme
-│   ├── css/theme-light.css   # Light theme overrides
 │   ├── favicon.ico
 │   └── manifest.json         # PWA manifest
+├── build.sh                  # Render build script
 ├── .env.example
 ├── requirements.txt
 └── Procfile                  # Render deployment (web + worker + release)
