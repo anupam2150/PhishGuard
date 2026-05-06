@@ -1,0 +1,126 @@
+{% extends "base.html" %}
+{% block title %}Watchlist Alerts — PhishGuard{% endblock %}
+
+{% block content %}
+<div class="d-flex align-items-center justify-content-between mb-4 flex-wrap gap-2">
+  <div>
+    <h5 class="mb-0">
+      <i class="bi bi-bell-fill me-2 text-warning"></i>Watchlist Alerts
+      {% if unacked_count %}
+        <span class="badge bg-danger ms-1">{{ unacked_count }} new</span>
+      {% endif %}
+    </h5>
+    <div class="text-muted small mt-1">Risk level changes detected for your monitored indicators.</div>
+  </div>
+  <div class="d-flex gap-2">
+    {% if unacked_count %}
+    <form method="post" action="{% url 'watchlist:acknowledge_all' %}">
+      {% csrf_token %}
+      <button type="submit" class="btn btn-sm btn-outline-secondary">
+        <i class="bi bi-check-all me-1"></i>Acknowledge All
+      </button>
+    </form>
+    {% endif %}
+    <a href="{% url 'watchlist:list' %}" class="btn btn-sm btn-outline-secondary">
+      <i class="bi bi-eye me-1"></i>Watchlist
+    </a>
+  </div>
+</div>
+
+<div class="card bg-dark border-secondary">
+  {% if alerts %}
+  <div class="table-responsive">
+    <table class="table table-dark table-hover mb-0 small align-middle">
+      <thead class="text-muted">
+        <tr>
+          <th>Indicator</th>
+          <th>Type</th>
+          <th>Previous Risk</th>
+          <th></th>
+          <th>New Risk</th>
+          <th>Detected</th>
+          <th>Status</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for alert in alerts %}
+        <tr class="{% if not alert.acknowledged %}table-active{% endif %}">
+          <td class="font-monospace text-truncate" style="max-width:200px;" title="{{ alert.entry.indicator }}">
+            {{ alert.entry.indicator }}
+          </td>
+          <td>
+            <span class="badge bg-secondary">{{ alert.entry.indicator_type }}</span>
+          </td>
+
+          <!-- Previous risk -->
+          <td>
+            {% if alert.previous_risk == "CRITICAL" %}
+              <span class="badge bg-danger">CRITICAL</span>
+            {% elif alert.previous_risk == "HIGH" %}
+              <span class="badge bg-warning text-dark">HIGH</span>
+            {% elif alert.previous_risk == "MEDIUM" %}
+              <span class="badge bg-info text-dark">MEDIUM</span>
+            {% elif alert.previous_risk == "LOW" %}
+              <span class="badge bg-success">LOW</span>
+            {% else %}
+              <span class="badge bg-secondary">{{ alert.previous_risk|default:"—" }}</span>
+            {% endif %}
+          </td>
+
+          <td class="text-muted"><i class="bi bi-arrow-right"></i></td>
+
+          <!-- New risk -->
+          <td>
+            {% if alert.new_risk == "CRITICAL" %}
+              <span class="badge bg-danger">CRITICAL</span>
+            {% elif alert.new_risk == "HIGH" %}
+              <span class="badge bg-warning text-dark">HIGH</span>
+            {% elif alert.new_risk == "MEDIUM" %}
+              <span class="badge bg-info text-dark">MEDIUM</span>
+            {% elif alert.new_risk == "LOW" %}
+              <span class="badge bg-success">LOW</span>
+            {% else %}
+              <span class="badge bg-secondary">{{ alert.new_risk }}</span>
+            {% endif %}
+          </td>
+
+          <td class="text-muted">{{ alert.detected_at|date:"M j, Y H:i" }}</td>
+
+          <td>
+            {% if alert.acknowledged %}
+              <span class="badge bg-secondary">Acknowledged</span>
+            {% else %}
+              <span class="badge bg-danger">New</span>
+            {% endif %}
+          </td>
+
+          <td class="text-end">
+            <div class="d-flex gap-1 justify-content-end">
+              <a href="{% url 'intel:form' %}?prefill={{ alert.entry.indicator|urlencode }}"
+                 class="btn btn-sm btn-outline-secondary py-0 px-2" title="Run intel lookup">
+                <i class="bi bi-search"></i>
+              </a>
+              {% if not alert.acknowledged %}
+              <form method="post" action="{% url 'watchlist:acknowledge' alert.pk %}">
+                {% csrf_token %}
+                <button type="submit" class="btn btn-sm btn-outline-success py-0 px-2" title="Acknowledge">
+                  <i class="bi bi-check-lg"></i>
+                </button>
+              </form>
+              {% endif %}
+            </div>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <div class="card-body text-center text-muted py-5">
+    <i class="bi bi-bell-slash d-block fs-2 mb-2 opacity-25"></i>
+    No alerts yet. Alerts appear here when a monitored indicator's risk level changes.
+  </div>
+  {% endif %}
+</div>
+{% endblock %}

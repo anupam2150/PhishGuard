@@ -1,0 +1,348 @@
+{% extends "base.html" %}
+{% block title %}Bulk Scan Results — PhishGuard{% endblock %}
+
+{% block content %}
+
+<!-- ── Header ── -->
+<div class="d-flex align-items-start justify-content-between mb-4 flex-wrap gap-2">
+  <div>
+    <h5 class="mb-1">
+      <i class="bi bi-files me-2 text-primary"></i>{{ scan.uploaded_file_name }}
+      <span class="badge bg-secondary ms-1 fw-normal" style="font-size:.7rem;">#{{ scan.pk }}</span>
+    </h5>
+    <div class="text-muted small">
+      Submitted {{ scan.submitted_at|date:"N j, Y \a\t H:i" }}
+      {% if scan.user %}&nbsp;·&nbsp;{{ scan.user.username }}{% endif %}
+    </div>
+  </div>
+  <div class="d-flex gap-2 flex-wrap">
+    <a href="{% url 'bulk_scanner:download_csv' scan.pk %}" class="btn btn-sm btn-outline-success">
+      <i class="bi bi-download me-1"></i>Download CSV Report
+    </a>
+    <a href="{% url 'bulk_scanner:upload' %}" class="btn btn-sm btn-outline-secondary">
+      <i class="bi bi-plus me-1"></i>New Scan
+    </a>
+  </div>
+</div>
+
+<!-- ── Progress bar (QUEUED / PROCESSING only) ── -->
+{% if scan.status == "QUEUED" or scan.status == "PROCESSING" %}
+<div id="progressSection" class="card bg-dark border-secondary mb-4">
+  <div class="card-body py-3">
+    <div class="d-flex justify-content-between align-items-center mb-1">
+      <span class="small fw-semibold" id="progressLabel">
+        <span class="spinner-border spinner-border-sm me-2 text-primary" role="status"></span>
+        Scanning <span id="completedCount">{{ scan.completed }}</span>
+        of <strong>{{ scan.total_urls }}</strong> URLs…
+      </span>
+      <span class="small text-muted" id="progressPct">{{ scan.progress_pct }}%</span>
+    </div>
+    <div class="progress mb-1" style="height:10px;">
+      <div id="progressBar"
+           class="progress-bar progress-bar-striped progress-bar-animated bg-primary"
+           style="width:{{ scan.progress_pct }}%; transition:width .4s ease;"></div>
+    </div>
+    <div class="d-flex justify-content-between small text-muted">
+      <span>
+        <span class="text-success">{{ scan.completed }} done</span>
+        &nbsp;·&nbsp;
+        <span class="text-danger" id="failedCount">{{ scan.failed }} failed</span>
+      </span>
+      <span id="statusBadge">
+        {% if scan.status == "QUEUED" %}
+          <span class="badge bg-secondary">QUEUED</span>
+        {% else %}
+          <span class="badge bg-warning text-dark">PROCESSING</span>
+        {% endif %}
+      </span>
+    </div>
+  </div>
+</div>
+{% endif %}
+
+<!-- ── Summary stat cards ── -->
+<div class="row g-3 mb-4">
+  <div class="col-6 col-md-3">
+    <div class="card bg-dark border-secondary text-center py-3 stat-card"
+         onclick="filterRisk('')" style="cursor:pointer;">
+      <div class="fs-3 fw-bold text-light">{{ scan.total_urls }}</div>
+      <div class="text-muted small">Total Scanned</div>
+    </div>
+  </div>
+  <div class="col-6 col-md-3">
+    <div class="card border-secondary text-center py-3 stat-card"
+         style="background:#3d1a1a; cursor:pointer;"
+         onclick="filterRisk('CRITICAL')">
+      <div class="fs-3 fw-bold" style="color:#ff7b72;">{{ risk_counts.CRITICAL }}</div>
+      <div class="small" style="color:#ff7b72;">Critical</div>
+    </div>
+  </div>
+  <div class="col-6 col-md-3">
+    <div class="card border-secondary text-center py-3 stat-card"
+         style="background:#3d2e00; cursor:pointer;"
+         onclick="filterRisk('HIGH')">
+      <div class="fs-3 fw-bold" style="color:#e3b341;">{{ risk_counts.HIGH }}</div>
+      <div class="small" style="color:#e3b341;">High</div>
+    </div>
+  </div>
+  <div class="col-6 col-md-3">
+    <div class="card border-secondary text-center py-3 stat-card"
+         style="background:#1a3d2b; cursor:pointer;"
+         onclick="filterRisk('LOW')">
+      <div class="fs-3 fw-bold" style="color:#56d364;">{{ risk_counts.LOW }}</div>
+      <div class="small" style="color:#56d364;">Clean (Low)</div>
+    </div>
+  </div>
+</div>
+
+<!-- ── Risk filter tabs ── -->
+<div class="d-flex flex-wrap gap-2 mb-3 align-items-center">
+  <span class="text-muted small me-1">Filter:</span>
+  <button onclick="filterRisk('')"
+          class="btn btn-sm filter-btn {% if not risk_filter %}btn-primary{% else %}btn-outline-secondary{% endif %}"
+          data-risk="">
+    All <span class="badge bg-secondary ms-1">{{ scan.total_urls }}</span>
+  </button>
+  {% if risk_counts.CRITICAL %}
+  <button onclick="filterRisk('CRITICAL')"
+          class="btn btn-sm filter-btn {% if risk_filter == 'CRITICAL' %}btn-danger{% else %}btn-outline-danger{% endif %}"
+          data-risk="CRITICAL">
+    Critical <span class="badge bg-danger ms-1">{{ risk_counts.CRITICAL }}</span>
+  </button>
+  {% endif %}
+  {% if risk_counts.HIGH %}
+  <button onclick="filterRisk('HIGH')"
+          class="btn btn-sm filter-btn {% if risk_filter == 'HIGH' %}btn-warning text-dark{% else %}btn-outline-warning{% endif %}"
+          data-risk="HIGH">
+    High <span class="badge bg-warning text-dark ms-1">{{ risk_counts.HIGH }}</span>
+  </button>
+  {% endif %}
+  {% if risk_counts.MEDIUM %}
+  <button onclick="filterRisk('MEDIUM')"
+          class="btn btn-sm filter-btn {% if risk_filter == 'MEDIUM' %}btn-info text-dark{% else %}btn-outline-info{% endif %}"
+          data-risk="MEDIUM">
+    Medium <span class="badge bg-info text-dark ms-1">{{ risk_counts.MEDIUM }}</span>
+  </button>
+  {% endif %}
+  {% if risk_counts.LOW %}
+  <button onclick="filterRisk('LOW')"
+          class="btn btn-sm filter-btn {% if risk_filter == 'LOW' %}btn-success{% else %}btn-outline-success{% endif %}"
+          data-risk="LOW">
+    Low <span class="badge bg-success ms-1">{{ risk_counts.LOW }}</span>
+  </button>
+  {% endif %}
+  {% if risk_counts.ERROR %}
+  <button onclick="filterRisk('ERROR')"
+          class="btn btn-sm filter-btn {% if risk_filter == 'ERROR' %}btn-secondary{% else %}btn-outline-secondary{% endif %}"
+          data-risk="ERROR">
+    Error <span class="badge bg-secondary ms-1">{{ risk_counts.ERROR }}</span>
+  </button>
+  {% endif %}
+
+  <!-- Visible count -->
+  <span class="ms-auto text-muted small" id="visibleCount"></span>
+</div>
+
+<!-- ── Results table ── -->
+<div class="card bg-dark border-secondary">
+  <div class="table-responsive">
+    <table class="table table-dark table-hover mb-0 small align-middle" id="resultsTable">
+      <thead class="text-muted">
+        <tr>
+          <th style="width:42%">URL</th>
+          <th>Risk</th>
+          <th>VT Positives</th>
+          <th>GSB Flagged</th>
+          <th>Abuse Score</th>
+          <th>Error</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody id="resultsBody">
+        {% for r in results %}
+        <tr data-risk="{{ r.risk_level }}">
+          <td style="max-width:0;">
+            <div class="text-truncate font-monospace" style="max-width:340px;" title="{{ r.url }}">
+              {{ r.url }}
+            </div>
+          </td>
+          <td>
+            {% if r.risk_level == "CRITICAL" %}
+              <span class="badge bg-danger">CRITICAL</span>
+            {% elif r.risk_level == "HIGH" %}
+              <span class="badge bg-warning text-dark">HIGH</span>
+            {% elif r.risk_level == "MEDIUM" %}
+              <span class="badge bg-info text-dark">MEDIUM</span>
+            {% elif r.risk_level == "LOW" %}
+              <span class="badge bg-success">LOW</span>
+            {% else %}
+              <span class="badge bg-secondary">ERROR</span>
+            {% endif %}
+          </td>
+          <td>
+            {% if r.vt_positives is not None %}
+              <span class="fw-semibold {% if r.vt_positives >= 10 %}text-danger{% elif r.vt_positives >= 3 %}text-warning{% elif r.vt_positives >= 1 %}text-info{% else %}text-muted{% endif %}">
+                {{ r.vt_positives }}
+              </span>
+            {% else %}
+              <span class="text-muted">—</span>
+            {% endif %}
+          </td>
+          <td>
+            {% if r.gsb_flagged is not None %}
+              {% if r.gsb_flagged %}
+                <i class="bi bi-exclamation-triangle-fill text-danger" title="Flagged by Google Safe Browsing"></i>
+              {% else %}
+                <i class="bi bi-check-circle-fill text-success" title="Clean"></i>
+              {% endif %}
+            {% else %}
+              <span class="text-muted">—</span>
+            {% endif %}
+          </td>
+          <td>
+            {% if r.abuse_confidence is not None %}
+              <span class="{% if r.abuse_confidence >= 75 %}text-danger{% elif r.abuse_confidence >= 25 %}text-warning{% else %}text-muted{% endif %}">
+                {{ r.abuse_confidence }}%
+              </span>
+            {% else %}
+              <span class="text-muted">—</span>
+            {% endif %}
+          </td>
+          <td class="text-danger" style="max-width:160px;">
+            {% if r.error_message %}
+              <span class="text-truncate d-inline-block" style="max-width:150px;"
+                    title="{{ r.error_message }}">{{ r.error_message|truncatechars:35 }}</span>
+            {% endif %}
+          </td>
+          <td class="text-end">
+            <a href="{% url 'scanner:scan' %}?prefill={{ r.url|urlencode }}"
+               class="btn btn-sm btn-outline-secondary py-0 px-2"
+               title="Scan this URL individually">
+              <i class="bi bi-search me-1"></i>Scan
+            </a>
+          </td>
+        </tr>
+        {% empty %}
+        <tr id="emptyRow">
+          <td colspan="7" class="text-center text-muted py-5">
+            {% if scan.status == "QUEUED" or scan.status == "PROCESSING" %}
+              <div class="spinner-border spinner-border-sm me-2" role="status"></div>
+              Scan in progress — results will appear here as URLs are processed.
+            {% else %}
+              No results found.
+            {% endif %}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- No-match message (hidden by default) -->
+<div id="noMatchMsg" class="text-center text-muted py-4 d-none">
+  <i class="bi bi-funnel me-1"></i>No results match this filter.
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+/* ── JS risk filter ── */
+let activeRisk = "{{ risk_filter }}";
+
+function filterRisk(risk) {
+  activeRisk = risk;
+  const rows    = document.querySelectorAll('#resultsBody tr[data-risk]');
+  const noMatch = document.getElementById('noMatchMsg');
+  const countEl = document.getElementById('visibleCount');
+  let visible   = 0;
+
+  rows.forEach(row => {
+    const show = !risk || row.dataset.risk === risk;
+    row.style.display = show ? '' : 'none';
+    if (show) visible++;
+  });
+
+  noMatch.classList.toggle('d-none', visible > 0);
+  countEl.textContent = visible + ' result' + (visible !== 1 ? 's' : '');
+
+  // Update button active states
+  document.querySelectorAll('.filter-btn').forEach(btn => {
+    const r = btn.dataset.risk;
+    btn.className = btn.className
+      .replace(/btn-(primary|danger|warning|info|success|secondary)\b/g, '')
+      .replace(/btn-outline-(danger|warning|info|success|secondary)\b/g, '')
+      .trim();
+
+    if (r === risk) {
+      const activeClass = {
+        '': 'btn-primary', 'CRITICAL': 'btn-danger',
+        'HIGH': 'btn-warning text-dark', 'MEDIUM': 'btn-info text-dark',
+        'LOW': 'btn-success', 'ERROR': 'btn-secondary'
+      }[r] || 'btn-secondary';
+      btn.classList.add(...activeClass.split(' '));
+    } else {
+      const outlineClass = {
+        '': 'btn-outline-secondary', 'CRITICAL': 'btn-outline-danger',
+        'HIGH': 'btn-outline-warning', 'MEDIUM': 'btn-outline-info',
+        'LOW': 'btn-outline-success', 'ERROR': 'btn-outline-secondary'
+      }[r] || 'btn-outline-secondary';
+      btn.classList.add(outlineClass);
+    }
+  });
+}
+
+// Apply initial filter from server-side value
+(function () {
+  const rows    = document.querySelectorAll('#resultsBody tr[data-risk]');
+  const countEl = document.getElementById('visibleCount');
+  countEl.textContent = rows.length + ' result' + (rows.length !== 1 ? 's' : '');
+  if (activeRisk) filterRisk(activeRisk);
+})();
+
+
+/* ── Progress bar polling ── */
+(function () {
+  const initialStatus = "{{ scan.status }}";
+  if (initialStatus === "COMPLETE" || initialStatus === "FAILED") return;
+
+  const statusUrl  = "{% url 'bulk_scanner:status' scan.pk %}";
+  const bar        = document.getElementById("progressBar");
+  const pct        = document.getElementById("progressPct");
+  const label      = document.getElementById("progressLabel");
+  const completed  = document.getElementById("completedCount");
+  const failed     = document.getElementById("failedCount");
+  const section    = document.getElementById("progressSection");
+  const statusBadge = document.getElementById("statusBadge");
+
+  function poll() {
+    fetch(statusUrl)
+      .then(r => r.json())
+      .then(data => {
+        const p = data.percent;
+        bar.style.width       = p + "%";
+        pct.textContent       = p + "%";
+        completed.textContent = data.completed;
+        failed.textContent    = data.failed + " failed";
+
+        if (data.status === "PROCESSING") {
+          label.innerHTML = `<span class="spinner-border spinner-border-sm me-2 text-primary" role="status"></span>
+            Scanning <span id="completedCount">${data.completed}</span> of <strong>${data.total}</strong> URLs\u2026`;
+          statusBadge.innerHTML = '<span class="badge bg-warning text-dark">PROCESSING</span>';
+        }
+
+        if (data.status === "COMPLETE" || data.status === "FAILED") {
+          if (section) section.style.display = "none";
+          window.location.reload();
+        } else {
+          setTimeout(poll, 3000);
+        }
+      })
+      .catch(() => setTimeout(poll, 5000));
+  }
+
+  setTimeout(poll, 3000);
+})();
+</script>
+{% endblock %}

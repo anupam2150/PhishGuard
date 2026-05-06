@@ -9,4 +9,5 @@ urlpatterns = [
     path("scans/today/", views.high_critical_today_view, name="high_critical_today"),
     path("scans/alltime/", views.high_critical_alltime_view, name="high_critical_alltime"),
     path("scans/all/", views.all_scans_view, name="all_scans"),
+    path("threat-map/", views.threat_map, name="threat_map"),
 ]

@@ -1,0 +1,26 @@
+{% extends "base.html" %}
+{% block title %}404 — Page Not Found{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center mt-5">
+  <div class="col-md-6 text-center">
+    <div style="font-size:5rem; line-height:1; margin-bottom:1rem;">🎯</div>
+    <h2 class="fw-bold mb-2" style="color:#58a6ff;">404 — Page Not Found</h2>
+    <p class="text-muted mb-1">
+      The URL you scanned may have already been taken down.
+    </p>
+    <p class="text-muted mb-4 small">
+      Or the page never existed — phishing sites often disappear quickly after detection.
+    </p>
+    <div class="d-flex gap-2 justify-content-center flex-wrap">
+      <a href="{% url 'dashboard:overview' %}" class="btn btn-primary">
+        <i class="bi bi-speedometer2 me-1"></i>Dashboard
+      </a>
+      <a href="{% url 'scanner:scan' %}" class="btn btn-outline-secondary">
+        <i class="bi bi-shield-fill-check me-1"></i>Scan a URL
+      </a>
+    </div>
+    <p class="text-muted mt-4" style="font-size:.75rem;">HTTP 404 Not Found</p>
+  </div>
+</div>
+{% endblock %}

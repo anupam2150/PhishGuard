@@ -21,6 +21,21 @@
       <div class="ms-auto text-end">
         <div class="verdict-label">Scanned</div>
         <div class="small">{{ result.scanned_at|date:"Y-m-d H:i" }}</div>
+        <div class="d-flex gap-1 mt-2 justify-content-end flex-wrap">
+          <a href="{% url 'scanner:download_pdf' result.pk %}"
+             class="btn btn-sm btn-outline-light" title="Download PDF Report">
+            <i class="bi bi-file-earmark-pdf me-1"></i>PDF
+          </a>
+          <a href="{% url 'scanner:result' result.pk %}" target="_blank"
+             class="btn btn-sm btn-outline-light" title="Open in new tab">
+            <i class="bi bi-box-arrow-up-right"></i>
+          </a>
+          <button class="btn btn-sm btn-outline-light"
+                  title="Copy permalink"
+                  onclick="navigator.clipboard.writeText(window.location.href).then(()=>{this.innerHTML='<i class=\'bi bi-check-lg\'></i>';setTimeout(()=>{this.innerHTML='<i class=\'bi bi-link-45deg\'></i>'},1500)}).catch(()=>{})">
+            <i class="bi bi-link-45deg"></i>
+          </button>
+        </div>
       </div>
     </div>
 
@@ -31,7 +46,14 @@
 
         <!-- VirusTotal score card -->
         <div class="card mb-4">
-          <div class="card-header"><i class="bi bi-virus me-2"></i>VirusTotal Analysis</div>
+          <div class="card-header d-flex align-items-center gap-2">
+            <i class="bi bi-virus me-1"></i>VirusTotal Analysis
+            {% if vt_cached %}
+              <span class="badge ms-auto" style="background:#1f4068; color:#79c0ff; font-size:.65rem;">
+                ⚡ Cached
+              </span>
+            {% endif %}
+          </div>
           <div class="card-body">
             <div class="d-flex align-items-center justify-content-between mb-2">
               <span class="text-muted small">Engines flagged</span>
@@ -61,6 +83,108 @@
           </div>
         </div>
 
+        <!-- SSL/TLS card -->
+        <div class="card mb-4">
+          <div class="card-header d-flex align-items-center gap-2">
+            {% if ssl.ssl_available %}
+              {% if ssl.ssl_risk_flags %}
+                <i class="bi bi-lock-fill text-warning"></i>
+              {% else %}
+                <i class="bi bi-lock-fill text-success"></i>
+              {% endif %}
+            {% else %}
+              <i class="bi bi-unlock-fill text-danger"></i>
+            {% endif %}
+            SSL / TLS Certificate
+            {% if ssl.ssl_available and ssl.days_remaining is not None %}
+              <span class="badge ms-auto
+                {% if ssl.days_remaining < 0 %}bg-danger
+                {% elif ssl.days_remaining < 7 %}bg-warning text-dark
+                {% elif ssl.days_remaining < 30 %}bg-info text-dark
+                {% else %}bg-success{% endif %}">
+                {% if ssl.days_remaining < 0 %}Expired
+                {% else %}{{ ssl.days_remaining }}d left{% endif %}
+              </span>
+            {% endif %}
+          </div>
+          <div class="card-body">
+            {% if ssl.ssl_available %}
+
+              <!-- Risk flags -->
+              {% if ssl.ssl_risk_flags %}
+              <div class="d-flex flex-wrap gap-2 mb-3">
+                {% for flag in ssl.ssl_risk_flags %}
+                  <span class="badge bg-warning text-dark">
+                    <i class="bi bi-exclamation-triangle-fill me-1"></i>{{ flag }}
+                  </span>
+                {% endfor %}
+              </div>
+              {% else %}
+              <div class="text-success small mb-3">
+                <i class="bi bi-check-circle-fill me-1"></i>No SSL risk flags detected
+              </div>
+              {% endif %}
+
+              <!-- Certificate details table -->
+              <table class="table table-sm mb-0">
+                <tbody>
+                  {% if ssl.subject %}
+                  <tr><th style="width:38%">Subject (CN)</th><td class="text-break">{{ ssl.subject }}</td></tr>
+                  {% endif %}
+                  {% if ssl.issuer %}
+                  <tr>
+                    <th>Issuer (CN)</th>
+                    <td class="text-break">
+                      {{ ssl.issuer }}
+                      {% if ssl.is_self_signed %}
+                        <span class="badge bg-danger ms-1">Self-signed</span>
+                      {% endif %}
+                    </td>
+                  </tr>
+                  {% endif %}
+                  <tr><th>Valid From</th><td>{{ ssl.valid_from|slice:":10" }}</td></tr>
+                  <tr><th>Valid Until</th><td>{{ ssl.valid_until|slice:":10" }}</td></tr>
+                  {% if ssl.signature_algorithm %}
+                  <tr><th>Signature Algo</th><td><code>{{ ssl.signature_algorithm }}</code></td></tr>
+                  {% endif %}
+                </tbody>
+              </table>
+
+              <!-- SAN domains -->
+              {% if ssl.san_domains %}
+              <div class="mt-3">
+                <div class="small text-muted mb-2">
+                  Subject Alternative Names ({{ ssl.san_domains|length }})
+                  {% if ssl.has_wildcard_san %}
+                    <span class="badge bg-warning text-dark ms-1">Wildcard</span>
+                  {% endif %}
+                </div>
+                <div class="d-flex flex-wrap gap-1">
+                  {% for san in ssl.san_domains|slice:":15" %}
+                    <span class="badge"
+                          style="background:#21262d; color:#8b949e; border:1px solid #30363d; font-family:monospace;">
+                      {{ san }}
+                    </span>
+                  {% endfor %}
+                  {% if ssl.san_domains|length > 15 %}
+                    <span class="badge bg-secondary">+{{ ssl.san_domains|length|add:"-15" }} more</span>
+                  {% endif %}
+                </div>
+              </div>
+              {% endif %}
+
+            {% else %}
+              <div class="text-muted small">
+                {% if ssl.error %}
+                  <i class="bi bi-exclamation-circle me-1 text-warning"></i>{{ ssl.error }}
+                {% else %}
+                  <i class="bi bi-dash-circle me-1"></i>SSL data not available
+                {% endif %}
+              </div>
+            {% endif %}
+          </div>
+        </div>
+
         <!-- Domain info card -->
         <div class="card mb-4">
           <div class="card-header"><i class="bi bi-globe2 me-2"></i>Domain Information</div>
@@ -76,7 +200,16 @@
                     </button>
                   </td>
                 </tr>
-                <tr><th>Domain</th><td>{{ result.domain }}</td></tr>
+                <tr><th>Domain</th>
+                  <td>
+                    {{ result.domain }}
+                    <button class="btn btn-sm p-0 ms-1"
+                            onclick="navigator.clipboard.writeText('{{ result.domain }}').then(()=>{this.textContent='✓';setTimeout(()=>{this.innerHTML='<i class=\'bi bi-clipboard text-muted\'></i>'},1500)}).catch(()=>{})"
+                            title="Copy domain">
+                      <i class="bi bi-clipboard text-muted"></i>
+                    </button>
+                  </td>
+                </tr>
                 <tr><th>Registrar</th><td>{{ result.whois_registrar|default:"N/A" }}</td></tr>
                 <tr>
                   <th>Domain Age</th>
@@ -123,6 +256,38 @@
                 <span class="ms-auto small text-muted">{% if result.gsb_flagged %}Flagged{% else %}Clean{% endif %}</span>
               </li>
               <li class="check-item">
+                <span class="check-icon {% if result.phishtank_flagged %}check-fail{% elif result.phishtank_flagged == False %}check-pass{% else %}check-neutral{% endif %}">
+                  <i class="bi bi-{% if result.phishtank_flagged %}x-circle-fill{% elif result.phishtank_flagged == False %}check-circle-fill{% else %}dash-circle-fill{% endif %}"></i>
+                </span>
+                <span>PhishTank</span>
+                <span class="ms-auto small text-muted">
+                  {% if result.phishtank_flagged %}Phishing confirmed
+                  {% elif result.phishtank_flagged == False %}Not listed
+                  {% else %}Not checked{% endif %}
+                </span>
+              </li>
+              <li class="check-item">
+                {% if ssl.ssl_available %}
+                  {% if ssl.ssl_risk_flags %}
+                    <span class="check-icon check-warn"><i class="bi bi-exclamation-circle-fill"></i></span>
+                    <span>SSL / TLS</span>
+                    <span class="ms-auto small text-muted">{{ ssl.ssl_risk_flags|length }} flag{{ ssl.ssl_risk_flags|length|pluralize }}</span>
+                  {% else %}
+                    <span class="check-icon check-pass"><i class="bi bi-check-circle-fill"></i></span>
+                    <span>SSL / TLS</span>
+                    <span class="ms-auto small text-muted">{{ ssl.days_remaining }}d remaining</span>
+                  {% endif %}
+                {% elif result.url|slice:":5" == "http:" %}
+                  <span class="check-icon check-warn"><i class="bi bi-exclamation-circle-fill"></i></span>
+                  <span>SSL / TLS</span>
+                  <span class="ms-auto small text-muted">HTTP only — no SSL</span>
+                {% else %}
+                  <span class="check-icon check-neutral"><i class="bi bi-dash-circle-fill"></i></span>
+                  <span>SSL / TLS</span>
+                  <span class="ms-auto small text-muted">Unavailable</span>
+                {% endif %}
+              </li>
+              <li class="check-item">
                 <span class="check-icon {% if result.domain_age_days and result.domain_age_days >= 30 %}check-pass{% elif result.domain_age_days is not None %}check-warn{% else %}check-neutral{% endif %}">
                   <i class="bi bi-{% if result.domain_age_days and result.domain_age_days >= 30 %}check-circle-fill{% elif result.domain_age_days is not None %}exclamation-circle-fill{% else %}dash-circle-fill{% endif %}"></i>
                 </span>
@@ -139,6 +304,39 @@
                 <span class="ms-auto small text-muted">{% if result.whois_registrar %}Found{% else %}N/A{% endif %}</span>
               </li>
             </ul>
+          </div>
+        </div>
+
+        <!-- PhishTank card -->
+        <div class="card mb-4">
+          <div class="card-header d-flex align-items-center gap-2">
+            <span style="font-size:1.1rem;">🐟</span>
+            <span>PhishTank</span>
+            <span class="badge bg-secondary ms-1" style="font-size:.65rem;">
+              {% if phishtank.source == "live" %}Live API{% else %}Offline DB{% endif %}
+            </span>
+          </div>
+          <div class="card-body">
+            {% if result.phishtank_flagged %}
+              <div class="d-flex align-items-start gap-2 mb-2">
+                <i class="bi bi-exclamation-octagon-fill text-danger mt-1"></i>
+                <div>
+                  <div class="fw-semibold text-danger small">Confirmed Phishing Site</div>
+                  <div class="text-muted small">This URL is in the PhishTank database as a verified phishing page.</div>
+                </div>
+              </div>
+              {% if phishtank.phish_detail_url %}
+              <a href="{{ phishtank.phish_detail_url }}" target="_blank" rel="noopener"
+                 class="btn btn-sm btn-outline-danger mt-1">
+                <i class="bi bi-box-arrow-up-right me-1"></i>View on PhishTank
+              </a>
+              {% endif %}
+            {% else %}
+              <div class="d-flex align-items-center gap-2 text-success small">
+                <i class="bi bi-check-circle-fill"></i>
+                Not found in PhishTank database
+              </div>
+            {% endif %}
           </div>
         </div>
 
@@ -160,6 +358,61 @@
 
       </div>
     </div>
+
+    <!-- ── Visual Preview ── -->
+    {% if result.risk_level == "HIGH" or result.risk_level == "CRITICAL" %}
+    <div class="card mt-4">
+      <div class="card-header d-flex align-items-center gap-2"
+           style="background:#3d1a1a !important; border-color:#5c2323 !important;">
+        <i class="bi bi-camera-fill" style="color:#ff7b72;"></i>
+        <span style="color:#ff7b72;">Visual Preview</span>
+        <span class="badge ms-auto" style="background:#da3633;">⚠ Suspicious Page</span>
+      </div>
+      <div class="card-body p-0">
+
+        {% if result.screenshot_path %}
+        <!-- Warning banner -->
+        <div class="d-flex align-items-center gap-2 px-3 py-2"
+             style="background:#3d1a1a; border-bottom:1px solid #5c2323;">
+          <i class="bi bi-exclamation-octagon-fill" style="color:#ff7b72; font-size:1.1rem;"></i>
+          <span class="small fw-semibold" style="color:#ff7b72;">
+            Phishing Site Screenshot &mdash; Do Not Interact
+          </span>
+        </div>
+        <!-- Screenshot with overlay badge -->
+        <div class="position-relative">
+          <img src="{{ MEDIA_URL }}{{ result.screenshot_path }}"
+               alt="Screenshot of {{ result.domain }}"
+               loading="lazy"
+               class="w-100 d-block"
+               style="max-height:480px; object-fit:cover; object-position:top;
+                      border-radius:0 0 0.5rem 0.5rem; filter:brightness(0.92);">
+          <div class="position-absolute top-0 start-0 m-2">
+            <span class="badge d-flex align-items-center gap-1 px-2 py-1"
+                  style="background:rgba(218,54,51,0.92); font-size:.75rem; backdrop-filter:blur(2px);">
+              <i class="bi bi-exclamation-triangle-fill"></i>
+              ⚠ Phishing Site Screenshot &mdash; Do Not Interact
+            </span>
+          </div>
+        </div>
+
+        {% else %}
+        <!-- Placeholder -->
+        <div class="d-flex flex-column align-items-center justify-content-center py-5 text-muted"
+             style="min-height:160px; background:#1c2128; border-radius:0 0 0.5rem 0.5rem;">
+          <i class="bi bi-image-fill mb-2" style="font-size:2rem; opacity:.35;"></i>
+          <div class="small">Screenshot unavailable</div>
+          {% if not screenshot_enabled %}
+          <div class="mt-1" style="font-size:.75rem;">
+            Set <code>SCREENSHOT_ENABLED=True</code> in <code>.env</code> to capture previews.
+          </div>
+          {% endif %}
+        </div>
+        {% endif %}
+
+      </div>
+    </div>
+    {% endif %}
 
   </div>
 </div>

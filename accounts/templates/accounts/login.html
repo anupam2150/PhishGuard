@@ -1,0 +1,40 @@
+{% extends "base.html" %}
+{% block title %}Login — PhishGuard{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center mt-5">
+  <div class="col-md-5">
+    <div class="card bg-dark border-secondary">
+      <div class="card-body p-4">
+        <h4 class="mb-4 text-center">
+          <i class="bi bi-shield-lock text-primary me-2"></i>Sign In
+        </h4>
+        <form method="post" novalidate>
+          {% csrf_token %}
+          {% if form.non_field_errors %}
+            <div class="alert alert-danger py-2 small">{{ form.non_field_errors }}</div>
+          {% endif %}
+          <div class="mb-3">
+            <label class="form-label small text-muted">Username</label>
+            <input type="text" name="username" class="form-control
+              {% if form.username.errors %}is-invalid{% endif %}"
+              value="{{ form.username.value|default:'' }}" autocomplete="username">
+            {% for e in form.username.errors %}<div class="invalid-feedback">{{ e }}</div>{% endfor %}
+          </div>
+          <div class="mb-3">
+            <label class="form-label small text-muted">Password</label>
+            <input type="password" name="password" class="form-control
+              {% if form.password.errors %}is-invalid{% endif %}"
+              autocomplete="current-password">
+            {% for e in form.password.errors %}<div class="invalid-feedback">{{ e }}</div>{% endfor %}
+          </div>
+          <button type="submit" class="btn btn-primary w-100 mt-2">Sign In</button>
+        </form>
+        <p class="text-center text-muted small mt-3">
+          No account? <a href="{% url 'accounts:register' %}">Register here</a>
+        </p>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

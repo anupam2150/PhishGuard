@@ -1,0 +1,27 @@
+⚠ PhishGuard Watchlist Alert
+
+Hello {{ entry.user.username }},
+
+A monitored indicator in your PhishGuard watchlist has changed risk level:
+
+  Indicator:      {{ entry.indicator }}
+  Type:           {{ entry.indicator_type }}
+  Previous Risk:  {{ previous_risk }}
+  New Risk:       {{ new_risk }}
+  Detected:       {{ now|date:"N j, Y \a\t H:i T" }}
+
+{% if entry.notes %}
+Your notes: {{ entry.notes }}
+{% endif %}
+
+View your watchlist:
+{{ site_url }}/watchlist/
+
+View all alerts:
+{{ site_url }}/watchlist/alerts/
+
+Run a fresh intel lookup:
+{{ site_url }}/intel/?prefill={{ entry.indicator|urlencode }}
+
+---
+PhishGuard — Detect. Analyze. Defend.

@@ -1,0 +1,183 @@
+{% extends "base.html" %}
+{% block title %}Watchlist — PhishGuard{% endblock %}
+
+{% block content %}
+<div class="d-flex align-items-center justify-content-between mb-4 flex-wrap gap-2">
+  <div>
+    <h5 class="mb-0"><i class="bi bi-eye-fill me-2 text-primary"></i>Watchlist</h5>
+    <div class="text-muted small mt-1">Monitor domains, IPs, and URLs for risk changes.</div>
+  </div>
+  <div class="d-flex gap-2">
+    {% if unacked_count %}
+    <a href="{% url 'watchlist:alerts' %}" class="btn btn-sm btn-danger">
+      <i class="bi bi-bell-fill me-1"></i>{{ unacked_count }} Alert{{ unacked_count|pluralize }}
+    </a>
+    {% else %}
+    <a href="{% url 'watchlist:alerts' %}" class="btn btn-sm btn-outline-secondary">
+      <i class="bi bi-bell me-1"></i>Alerts
+    </a>
+    {% endif %}
+  </div>
+</div>
+
+<div class="row g-4">
+
+  <!-- Add entry form -->
+  <div class="col-lg-4">
+    <div class="card">
+      <div class="card-header">
+        <i class="bi bi-plus-circle me-2 text-success"></i>Add to Watchlist
+      </div>
+      <div class="card-body">
+        <form method="post" novalidate>
+          {% csrf_token %}
+          {% for field in form %}
+          <div class="mb-3">
+            <label class="form-label small text-muted">{{ field.label }}</label>
+            {% if field.field.widget.input_type == "checkbox" %}
+            <div class="form-check">
+              {{ field }}
+              <label class="form-check-label small" for="{{ field.id_for_label }}">
+                {{ field.label }}
+              </label>
+            </div>
+            {% else %}
+            {{ field }}
+            {% endif %}
+            {% for error in field.errors %}
+            <div class="text-danger small mt-1">{{ error }}</div>
+            {% endfor %}
+          </div>
+          {% endfor %}
+          <button type="submit" class="btn btn-success w-100">
+            <i class="bi bi-plus me-1"></i>Add Indicator
+          </button>
+        </form>
+      </div>
+    </div>
+
+    <!-- Info card -->
+    <div class="card mt-3">
+      <div class="card-header py-2">
+        <i class="bi bi-info-circle me-2 text-info"></i>How monitoring works
+      </div>
+      <div class="card-body small text-muted">
+        <ul class="ps-3 mb-0">
+          <li class="mb-1">Each entry is re-scanned periodically via the Celery worker.</li>
+          <li class="mb-1">If the risk level changes, a <strong class="text-light">WatchlistAlert</strong> is created.</li>
+          <li class="mb-1">Enable <strong class="text-light">Alert on change</strong> to be notified in the Alerts panel.</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <!-- Entries table -->
+  <div class="col-lg-8">
+    <div class="card">
+      <div class="card-header d-flex align-items-center justify-content-between">
+        <span><i class="bi bi-list-ul me-2 text-secondary"></i>Monitored Indicators</span>
+        <span class="badge bg-secondary">{{ entries|length }}</span>
+      </div>
+      {% if entries %}
+      <div class="table-responsive">
+        <table class="table table-sm table-hover mb-0 small align-middle">
+          <thead class="text-muted">
+            <tr>
+              <th>Indicator</th>
+              <th>Type</th>
+              <th>Last Risk</th>
+              <th>Last Scanned</th>
+              <th>Alerts</th>
+              <th>Alert on Change</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for entry in entries %}
+            <tr>
+              <td class="font-monospace text-truncate" style="max-width:220px;" title="{{ entry.indicator }}">
+                {{ entry.indicator }}
+              </td>
+              <td>
+                <span class="badge bg-secondary">{{ entry.indicator_type }}</span>
+              </td>
+              <td>
+                {% if entry.last_risk_level %}
+                  {% if entry.last_risk_level == "CRITICAL" %}
+                    <span class="badge bg-danger">CRITICAL</span>
+                  {% elif entry.last_risk_level == "HIGH" %}
+                    <span class="badge bg-warning text-dark">HIGH</span>
+                  {% elif entry.last_risk_level == "MEDIUM" %}
+                    <span class="badge bg-info text-dark">MEDIUM</span>
+                  {% elif entry.last_risk_level == "LOW" %}
+                    <span class="badge bg-success">LOW</span>
+                  {% else %}
+                    <span class="badge bg-secondary">{{ entry.last_risk_level }}</span>
+                  {% endif %}
+                {% else %}
+                  <span class="text-muted">—</span>
+                {% endif %}
+              </td>
+              <td class="text-muted">
+                {% if entry.last_scanned_at %}
+                  {{ entry.last_scanned_at|date:"M j, H:i" }}
+                {% else %}
+                  <span class="text-muted">Never</span>
+                {% endif %}
+              </td>
+              <td>
+                {% with count=entry.unacknowledged_alerts %}
+                {% if count %}
+                  <a href="{% url 'watchlist:alerts' %}" class="badge bg-danger text-decoration-none">
+                    {{ count }} new
+                  </a>
+                {% else %}
+                  <span class="text-muted">—</span>
+                {% endif %}
+                {% endwith %}
+              </td>
+              <td>
+                {% if entry.alert_on_change %}
+                  <i class="bi bi-bell-fill text-warning" title="Alerts enabled"></i>
+                {% else %}
+                  <i class="bi bi-bell-slash text-muted" title="Alerts disabled"></i>
+                {% endif %}
+              </td>
+              <td class="text-end">
+                <div class="d-flex gap-1 justify-content-end">
+                  <a href="{% url 'intel:form' %}?prefill={{ entry.indicator|urlencode }}"
+                     class="btn btn-sm btn-outline-secondary py-0 px-2" title="Run intel lookup">
+                    <i class="bi bi-search"></i>
+                  </a>
+                  <form method="post" action="{% url 'watchlist:delete' entry.pk %}"
+                        onsubmit="return confirm('Remove {{ entry.indicator }} from watchlist?')">
+                    {% csrf_token %}
+                    <button type="submit" class="btn btn-sm btn-outline-danger py-0 px-2" title="Remove">
+                      <i class="bi bi-trash"></i>
+                    </button>
+                  </form>
+                </div>
+              </td>
+            </tr>
+            {% if entry.notes %}
+            <tr style="border-top:none;">
+              <td colspan="7" class="text-muted py-1 ps-3" style="font-size:.78rem; border-top:none;">
+                <i class="bi bi-sticky me-1"></i>{{ entry.notes }}
+              </td>
+            </tr>
+            {% endif %}
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      {% else %}
+      <div class="card-body text-center text-muted py-5">
+        <i class="bi bi-eye-slash d-block fs-2 mb-2 opacity-25"></i>
+        Your watchlist is empty. Add an indicator using the form.
+      </div>
+      {% endif %}
+    </div>
+  </div>
+
+</div>
+{% endblock %}

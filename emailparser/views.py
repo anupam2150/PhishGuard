@@ -5,8 +5,11 @@ from .models import EmailScan
 from .utils import parse_headers
 
 
-def _recent_scans():
-    return EmailScan.objects.order_by("-submitted_at")[:5]
+def _recent_scans(user):
+    qs = EmailScan.objects.order_by("-submitted_at")
+    if user.is_authenticated:
+        return qs.filter(user=user)[:5]
+    return qs.filter(user=None)[:5]
 
 
 def email_form_view(request):
@@ -22,14 +25,17 @@ def email_form_view(request):
         except Exception as e:
             messages.error(request, f"Failed to parse headers: {e}")
             return render(request, "emailparser/email_form.html", {
-                "form": form, "recent_scans": _recent_scans(), "prefill": prefill,
+                "form": form, "recent_scans": _recent_scans(request.user), "prefill": prefill,
             })
-        scan = EmailScan.objects.create(**parsed)
+        scan = EmailScan.objects.create(
+            user=request.user if request.user.is_authenticated else None,
+            **parsed
+        )
         messages.success(request, "Email headers analyzed successfully.")
         return redirect("emailparser:result", pk=scan.pk)
 
     return render(request, "emailparser/email_form.html", {
-        "form": form, "recent_scans": _recent_scans(), "prefill": prefill,
+        "form": form, "recent_scans": _recent_scans(request.user), "prefill": prefill,
     })
 
 

@@ -1,5 +1,5 @@
 def sidebar_counts(request):
-    counts = {"scanner": 0, "email": 0, "intel": 0, "ssl": 0, "redirect": 0, "emailcheck": 0}
+    counts = {"scanner": 0, "email": 0, "intel": 0, "ssl": 0, "redirect": 0, "emailcheck": 0, "watchlist_alerts": 0}
     try:
         from scanner.models import ScanResult
         counts["scanner"] = ScanResult.objects.count()
@@ -28,6 +28,14 @@ def sidebar_counts(request):
     try:
         from emaildetector.models import EmailCheck
         counts["emailcheck"] = EmailCheck.objects.count()
+    except Exception:
+        pass
+    try:
+        if request.user.is_authenticated:
+            from watchlist.models import WatchlistAlert
+            counts["watchlist_alerts"] = WatchlistAlert.objects.filter(
+                entry__user=request.user, acknowledged=False
+            ).count()
     except Exception:
         pass
     return {"sidebar_counts": counts}

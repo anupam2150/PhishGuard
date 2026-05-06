@@ -7,9 +7,13 @@ def resolve_ip(domain: str) -> str:
     if domain in _cache:
         return _cache[domain]
     try:
+        old_timeout = socket.getdefaulttimeout()
         socket.setdefaulttimeout(3)
-        results = socket.getaddrinfo(domain, None, socket.AF_INET)
-        ip = results[0][4][0]
+        try:
+            results = socket.getaddrinfo(domain, None, socket.AF_INET)
+            ip = results[0][4][0]
+        finally:
+            socket.setdefaulttimeout(old_timeout)
         _cache[domain] = ip
         return ip
     except Exception:

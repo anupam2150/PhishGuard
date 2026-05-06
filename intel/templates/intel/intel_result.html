@@ -24,6 +24,17 @@
         {% if report.country_code %}
           <div class="small text-muted mt-1"><i class="bi bi-geo-alt me-1"></i>{{ report.country_code }}</div>
         {% endif %}
+        <div class="d-flex gap-1 mt-2 justify-content-end">
+          <a href="{% url 'intel:result' report.pk %}" target="_blank"
+             class="btn btn-sm btn-outline-light" title="Open in new tab">
+            <i class="bi bi-box-arrow-up-right"></i>
+          </a>
+          <button class="btn btn-sm btn-outline-light"
+                  title="Copy permalink"
+                  onclick="navigator.clipboard.writeText(window.location.href).then(()=>{this.innerHTML='<i class=\'bi bi-check-lg\'></i>';setTimeout(()=>{this.innerHTML='<i class=\'bi bi-link-45deg\'></i>'},1500)}).catch(()=>{})">
+            <i class="bi bi-link-45deg"></i>
+          </button>
+        </div>
       </div>
     </div>
 
@@ -34,7 +45,14 @@
 
         <!-- VirusTotal card -->
         <div class="card mb-4">
-          <div class="card-header"><i class="bi bi-virus me-2"></i>VirusTotal Analysis</div>
+          <div class="card-header d-flex align-items-center gap-2">
+            <i class="bi bi-virus me-1"></i>VirusTotal Analysis
+            {% if vt_cached %}
+              <span class="badge ms-auto" style="background:#1f4068; color:#79c0ff; font-size:.65rem;">
+                ⚡ Cached
+              </span>
+            {% endif %}
+          </div>
           <div class="card-body">
             {% if report.vt_positives is not None %}
               <div class="d-flex align-items-center justify-content-between mb-2">
@@ -66,6 +84,75 @@
           </div>
         </div>
 
+        <!-- URLhaus card -->
+        {% if report.indicator_type != "HASH" %}
+        <div class="card mb-4">
+          <div class="card-header d-flex align-items-center gap-2">
+            <img src="https://urlhaus.abuse.ch/favicon.ico"
+                 width="16" height="16" alt="" onerror="this.style.display='none'">
+            <span>URLhaus <span class="badge bg-secondary ms-1" style="font-size:.65rem;">abuse.ch</span></span>
+            {% if urlhaus_cached %}
+              <span class="badge ms-auto" style="background:#1f4068; color:#79c0ff; font-size:.65rem;">
+                ⚡ Cached
+              </span>
+            {% endif %}
+          </div>
+          <div class="card-body">
+            {% if urlhaus.found %}
+              <div class="d-flex flex-wrap gap-3 mb-3">
+                <!-- Status -->
+                <div>
+                  <div class="text-muted small mb-1">Status</div>
+                  {% if urlhaus.status == "online" %}
+                    <span class="badge bg-danger"><i class="bi bi-circle-fill me-1" style="font-size:.5rem;"></i>Online</span>
+                  {% elif urlhaus.status == "offline" %}
+                    <span class="badge bg-secondary">Offline</span>
+                  {% else %}
+                    <span class="badge bg-warning text-dark">Unknown</span>
+                  {% endif %}
+                </div>
+                <!-- Threat -->
+                {% if urlhaus.threat %}
+                <div>
+                  <div class="text-muted small mb-1">Threat</div>
+                  <span class="badge bg-danger">{{ urlhaus.threat }}</span>
+                </div>
+                {% endif %}
+                <!-- URL count -->
+                {% if urlhaus.url_count %}
+                <div>
+                  <div class="text-muted small mb-1">Malicious URLs</div>
+                  <span class="fw-semibold text-danger">{{ urlhaus.url_count }}</span>
+                </div>
+                {% endif %}
+                <!-- Date added -->
+                {% if urlhaus.date_added %}
+                <div>
+                  <div class="text-muted small mb-1">First seen</div>
+                  <span class="small">{{ urlhaus.date_added }}</span>
+                </div>
+                {% endif %}
+              </div>
+              <!-- Tags -->
+              {% if urlhaus.tags %}
+              <div class="d-flex flex-wrap gap-1">
+                {% for tag in urlhaus.tags %}
+                  <span class="badge" style="background:#21262d; color:#8b949e; border:1px solid #30363d;">
+                    <i class="bi bi-tag me-1"></i>{{ tag }}
+                  </span>
+                {% endfor %}
+              </div>
+              {% endif %}
+            {% else %}
+              <div class="d-flex align-items-center gap-2 text-success small">
+                <i class="bi bi-check-circle-fill"></i>
+                Not found in URLhaus database
+              </div>
+            {% endif %}
+          </div>
+        </div>
+        {% endif %}
+
         <!-- Indicator details -->
         <div class="card mb-4">
           <div class="card-header"><i class="bi bi-card-list me-2"></i>Indicator Details</div>
@@ -76,7 +163,9 @@
                   <th style="width:40%">Indicator</th>
                   <td class="text-break">
                     {{ report.indicator }}
-                    <button class="btn btn-sm p-0 ms-2" onclick="navigator.clipboard.writeText('{{ report.indicator }}')" title="Copy">
+                    <button class="btn btn-sm p-0 ms-1"
+                            onclick="navigator.clipboard.writeText('{{ report.indicator }}').then(()=>{this.textContent='✓';setTimeout(()=>{this.innerHTML='<i class=\'bi bi-clipboard text-muted\'></i>'},1500)}).catch(()=>{})"
+                            title="Copy indicator">
                       <i class="bi bi-clipboard text-muted"></i>
                     </button>
                   </td>
@@ -150,6 +239,29 @@
                 <span>Geolocation</span>
                 <span class="ms-auto small text-muted">{{ report.country_code|default:"Unknown" }}</span>
               </li>
+              {% if report.indicator_type != "HASH" %}
+              <li class="check-item">
+                <span class="check-icon {% if urlhaus.found %}check-fail{% else %}check-pass{% endif %}">
+                  <i class="bi bi-{% if urlhaus.found %}x-circle-fill{% else %}check-circle-fill{% endif %}"></i>
+                </span>
+                <span>URLhaus</span>
+                <span class="ms-auto small text-muted">
+                  {% if urlhaus.found %}Found ({{ urlhaus.status }}){% else %}Clean{% endif %}
+                </span>
+              </li>
+              {% endif %}
+              {% if report.indicator_type == "IP" %}
+              <li class="check-item">
+                <span class="check-icon {% if shodan %}check-pass{% else %}check-neutral{% endif %}">
+                  <i class="bi bi-{% if shodan %}check-circle-fill{% else %}dash-circle-fill{% endif %}"></i>
+                </span>
+                <span>Shodan</span>
+                <span class="ms-auto small text-muted">
+                  {% if shodan %}{{ shodan.open_ports|length }} port{{ shodan.open_ports|length|pluralize }}
+                  {% else %}No data{% endif %}
+                </span>
+              </li>
+              {% endif %}
             </ul>
           </div>
         </div>
@@ -171,10 +283,106 @@
         </div>
 
       </div>
-    </div>
+    </div><!-- /row g-4 -->
 
-  </div>
-</div>
+    <!-- ── Shodan Intelligence (IP only) ── -->
+    {% if report.indicator_type == "IP" and shodan %}
+    <div class="card mt-4">
+      <div class="card-header d-flex align-items-center gap-2">
+        <i class="bi bi-hdd-rack-fill text-info"></i>
+        <span>Shodan Intelligence</span>
+        {% if shodan.last_update %}
+          <span class="text-muted small ms-auto">Last seen {{ shodan.last_update }}</span>
+        {% endif %}
+      </div>
+      <div class="card-body">
+        <div class="row g-4">
+
+          <!-- Host info + open ports -->
+          <div class="col-md-6">
+            <table class="table table-sm mb-3">
+              <tbody>
+                {% if shodan.org %}
+                <tr><th style="width:35%">Organisation</th><td>{{ shodan.org }}</td></tr>
+                {% endif %}
+                {% if shodan.isp %}
+                <tr><th>ISP</th><td>{{ shodan.isp }}</td></tr>
+                {% endif %}
+                {% if shodan.country %}
+                <tr><th>Location</th><td>{{ shodan.country }}{% if shodan.city %}, {{ shodan.city }}{% endif %}</td></tr>
+                {% endif %}
+                {% if shodan.hostnames %}
+                <tr>
+                  <th>Hostnames</th>
+                  <td class="small">{% for h in shodan.hostnames %}<div>{{ h }}</div>{% endfor %}</td>
+                </tr>
+                {% endif %}
+              </tbody>
+            </table>
+            {% if shodan.open_ports %}
+            <div class="small text-muted mb-2">Open Ports</div>
+            <div class="d-flex flex-wrap gap-1">
+              {% for port in shodan.open_ports %}
+                <span class="badge"
+                      style="background:#1f4068; color:#79c0ff; border:1px solid #1f6feb; font-family:monospace;">
+                  {{ port }}
+                </span>
+              {% endfor %}
+            </div>
+            {% endif %}
+          </div>
+
+          <!-- CVEs + banners -->
+          <div class="col-md-6">
+            {% if shodan.vulns %}
+            <div class="small text-muted mb-2">
+              <i class="bi bi-exclamation-triangle-fill text-danger me-1"></i>
+              Vulnerabilities ({{ shodan.vulns|length }})
+            </div>
+            <div class="d-flex flex-wrap gap-1 mb-3">
+              {% for cve in shodan.vulns %}
+                <a href="https://nvd.nist.gov/vuln/detail/{{ cve }}"
+                   target="_blank" rel="noopener"
+                   class="badge bg-danger text-decoration-none"
+                   title="View {{ cve }} on NVD">
+                  <i class="bi bi-shield-x me-1"></i>{{ cve }}
+                </a>
+              {% endfor %}
+            </div>
+            {% else %}
+            <div class="text-success small mb-3">
+              <i class="bi bi-check-circle-fill me-1"></i>No known CVEs
+            </div>
+            {% endif %}
+            {% if shodan.banners %}
+            <div class="small text-muted mb-2">Service Banners</div>
+            {% for banner in shodan.banners %}
+              <pre class="small mb-2 p-2 rounded"
+                   style="background:#0d1117; border:1px solid #30363d; color:#8b949e;
+                          white-space:pre-wrap; word-break:break-all; max-height:80px; overflow:hidden;">{{ banner }}</pre>
+            {% endfor %}
+            {% endif %}
+          </div>
+
+        </div>
+      </div>
+    </div>
+    {% elif report.indicator_type == "IP" %}
+    <div class="card mt-4">
+      <div class="card-header d-flex align-items-center gap-2">
+        <i class="bi bi-hdd-rack-fill text-info"></i>
+        <span>Shodan Intelligence</span>
+      </div>
+      <div class="card-body text-center text-muted py-4 small">
+        <i class="bi bi-hdd-rack d-block fs-2 mb-2 opacity-25"></i>
+        No Shodan data available for this IP.
+        Set <code>SHODAN_API_KEY</code> in <code>.env</code> to enable host intelligence.
+      </div>
+    </div>
+    {% endif %}
+
+  </div><!-- /col-lg-10 -->
+</div><!-- /row -->
 {% endblock %}
 
 {% block scripts %}

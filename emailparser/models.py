@@ -1,3 +1,4 @@
+from django.conf import settings
 from django.db import models
 
 
@@ -5,6 +6,7 @@ class EmailScan(models.Model):
     RISK_CHOICES = [("LOW", "LOW"), ("MEDIUM", "MEDIUM"), ("HIGH", "HIGH")]
     AUTH_CHOICES = [("pass", "pass"), ("fail", "fail"), ("neutral", "neutral"), ("none", "none")]
 
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL)
     submitted_at = models.DateTimeField(auto_now_add=True)
     sender = models.CharField(max_length=512)
     reply_to = models.CharField(max_length=512, null=True, blank=True)

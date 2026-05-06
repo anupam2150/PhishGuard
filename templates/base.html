@@ -8,6 +8,10 @@
   <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet" />
   {% load static %}
   <link rel="stylesheet" href="{% static 'css/custom.css' %}?v=11" />
+  <link rel="icon" href="{% static 'favicon.ico' %}" type="image/x-icon">
+  <link rel="manifest" href="{% static 'manifest.json' %}">
+  <meta name="theme-color" content="#0d1117" id="themeColorMeta">
+  {% block extra_head %}{% endblock %}
 </head>
 <body>
 
@@ -33,9 +37,28 @@
       </button>
     </div>
   </form>
-  <button onclick="toggleNewsPanel()" class="sidebar-toggle ms-auto" title="Toggle news panel">
-    <i class="bi bi-newspaper" id="newsPanelNavIcon"></i>
-  </button>
+  <!-- User nav -->
+  <div class="d-flex align-items-center ms-auto gap-2">
+    {% if user.is_authenticated %}
+      <a href="{% url 'accounts:profile' %}" class="btn btn-sm btn-outline-secondary" title="Profile">
+        <i class="bi bi-person-circle me-1"></i>
+        <span class="d-none d-md-inline">{{ user.username }}</span>
+      </a>
+      <a href="{% url 'accounts:logout' %}" class="btn btn-sm btn-outline-danger" title="Logout">
+        <i class="bi bi-box-arrow-right"></i>
+      </a>
+    {% else %}
+      <a href="{% url 'accounts:login' %}" class="btn btn-sm btn-outline-primary">
+        <i class="bi bi-box-arrow-in-right me-1"></i>Login
+      </a>
+      <a href="{% url 'accounts:register' %}" class="btn btn-sm btn-primary">
+        <i class="bi bi-person-plus me-1"></i>Register
+      </a>
+    {% endif %}
+    <button onclick="toggleNewsPanel()" class="sidebar-toggle" title="Toggle news panel">
+      <i class="bi bi-newspaper" id="newsPanelNavIcon"></i>
+    </button>
+  </div>
 </header>
 
 <!-- ── Body below topnav ── -->
@@ -48,6 +71,12 @@
         <a href="{% url 'dashboard:overview' %}" class="sidebar-link {% if request.path == '/' %}active{% endif %}">
           <i class="bi bi-speedometer2"></i>
           <span class="sidebar-label">Dashboard</span>
+        </a>
+      </li>
+      <li>
+        <a href="{% url 'dashboard:threat_map' %}" class="sidebar-link {% if '/threat-map/' in request.path %}active{% endif %}">
+          <i class="bi bi-globe2"></i>
+          <span class="sidebar-label">Threat Map</span>
         </a>
       </li>
       <li>
@@ -89,6 +118,29 @@
           <span class="sidebar-label">Campaign Correlator</span>
         </a>
       </li>
+      <li>
+        <a href="{% url 'bulk_scanner:upload' %}" class="sidebar-link {% if '/bulk/' in request.path %}active{% endif %}">
+          <i class="bi bi-files"></i>
+          <span class="sidebar-label">Bulk Scanner</span>
+        </a>
+      </li>
+      {% if user.is_authenticated %}
+      <li>
+        <a href="{% url 'watchlist:list' %}" class="sidebar-link {% if '/watchlist/' in request.path %}active{% endif %}">
+          <i class="bi bi-eye-fill"></i>
+          <span class="sidebar-label">Watchlist</span>
+          {% if sidebar_counts.watchlist_alerts > 0 %}
+            <span class="sidebar-badge bg-danger">{{ sidebar_counts.watchlist_alerts }}</span>
+          {% endif %}
+        </a>
+      </li>
+      <li>
+        <a href="{% url 'accounts:profile' %}" class="sidebar-link {% if '/accounts/profile' in request.path %}active{% endif %}">
+          <i class="bi bi-person-gear"></i>
+          <span class="sidebar-label">API Keys</span>
+        </a>
+      </li>
+      {% endif %}
     </ul>
     <div class="sidebar-footer">
       <span class="sidebar-label small text-muted">Detect. Analyze. Defend.</span>
@@ -357,6 +409,7 @@
   setInterval(updateNewsTimestamp, 60000);
   setInterval(() => fetchNews(true), NEWS_TTL);
 </script>
+
 {% block scripts %}{% endblock %}
 </body>
 </html>

@@ -11,6 +11,11 @@
     <button class="btn btn-outline-secondary btn-sm" onclick="exportJSON()">
       <i class="bi bi-download me-1"></i>Export JSON
     </button>
+    <button class="btn btn-outline-secondary btn-sm"
+            title="Copy permalink"
+            onclick="navigator.clipboard.writeText(window.location.href).then(()=>{this.innerHTML='<i class=\'bi bi-check-lg\'></i> Copied';setTimeout(()=>{this.innerHTML='<i class=\'bi bi-link-45deg\'></i> Copy Link'},1500)}).catch(()={})">
+      <i class="bi bi-link-45deg"></i> Copy Link
+    </button>
     <a href="{% url 'correlation:correlation_index' %}" class="btn btn-outline-secondary btn-sm">
       <i class="bi bi-arrow-left me-1"></i>New Scan
     </a>
@@ -87,8 +92,18 @@
           <tr>
             <td class="text-truncate" style="max-width:260px;" title="{{ url.raw_url }}">
               <a href="{{ url.raw_url }}" target="_blank" rel="noopener">{{ url.raw_url|truncatechars:60 }}</a>
+              <button class="btn btn-sm p-0 ms-1"
+                      onclick="navigator.clipboard.writeText('{{ url.raw_url|escapejs }}').then(()=>{this.textContent='✓';setTimeout(()=>{this.innerHTML='&#128203;'},1500)}).catch(()=>{})"
+                      title="Copy URL">&#128203;</button>
             </td>
-            <td><span class="text-muted small">{{ url.ip_address|default:"—" }}</span></td>
+            <td>
+              <span class="text-muted small">{{ url.ip_address|default:"—" }}</span>
+              {% if url.ip_address and url.ip_address != "UNRESOLVED" %}
+              <button class="btn btn-sm p-0 ms-1"
+                      onclick="navigator.clipboard.writeText('{{ url.ip_address }}').then(()=>{this.textContent='✓';setTimeout(()=>{this.innerHTML='&#128203;'},1500)}).catch(()=>{})"
+                      title="Copy IP">&#128203;</button>
+              {% endif %}
+            </td>
             <td><span class="text-muted small">{{ url.hosting_provider|default:"—" }}</span></td>
             <td>
               {% if url.suspicion_label == "HIGH" %}<span class="badge bg-danger">{{ url.suspicion_score|floatformat:2 }}</span>

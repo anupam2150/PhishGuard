@@ -1,0 +1,71 @@
+{% extends "base.html" %}
+{% block title %}Rate Limit Reached — PhishGuard{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center mt-5">
+  <div class="col-md-6">
+    <div class="card border-secondary" style="background:#161b22;">
+      <div class="card-body text-center py-5 px-4">
+
+        <!-- Icon -->
+        <div class="mb-3" style="font-size:3.5rem; line-height:1;">
+          <i class="bi bi-hourglass-split text-warning"></i>
+        </div>
+
+        <!-- Heading -->
+        <h3 class="fw-bold mb-2" style="color:#e3b341;">Rate Limit Reached</h3>
+
+        <!-- Limit info -->
+        {% if rate %}
+        <p class="text-muted mb-1">
+          You have exceeded the limit of
+          <strong class="text-light">{{ limit_num }} request{{ limit_num|pluralize }}</strong>
+          per <strong class="text-light">{{ window_label }}</strong> for this action.
+        </p>
+        {% else %}
+        <p class="text-muted mb-1">You have made too many requests in a short period.</p>
+        {% endif %}
+
+        <!-- Retry hint -->
+        <p class="text-muted mb-4">
+          <i class="bi bi-clock me-1"></i>
+          {% if retry_mins == 1 %}
+            Try again in about <strong class="text-light">1 minute</strong>.
+          {% elif retry_mins < 60 %}
+            Try again in about <strong class="text-light">{{ retry_mins }} minutes</strong>.
+          {% else %}
+            Try again in about <strong class="text-light">{{ retry_mins|floatformat:0 }} minutes</strong>
+            ({{ retry_mins|divisibleby:60|yesno:"1 hour,less than 1 hour" }}).
+          {% endif %}
+        </p>
+
+        <!-- Why this exists -->
+        <div class="alert alert-secondary py-2 small text-start mb-4">
+          <i class="bi bi-info-circle me-1"></i>
+          Rate limits protect shared API quotas (VirusTotal, AbuseIPDB, etc.) and keep
+          PhishGuard fast for everyone. Authenticated users with their own API keys
+          benefit from higher personal limits.
+          <a href="{% url 'accounts:profile' %}" class="ms-1">Add your API keys →</a>
+        </div>
+
+        <!-- Actions -->
+        <div class="d-flex gap-2 justify-content-center flex-wrap">
+          <a href="{% url 'dashboard:overview' %}" class="btn btn-primary">
+            <i class="bi bi-speedometer2 me-1"></i>Back to Dashboard
+          </a>
+          <button onclick="history.back()" class="btn btn-outline-secondary">
+            <i class="bi bi-arrow-left me-1"></i>Go Back
+          </button>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- HTTP status note -->
+    <p class="text-center text-muted small mt-3">
+      HTTP 429 Too Many Requests
+      {% if rate %}&nbsp;&middot;&nbsp;Limit: {{ rate }}{% endif %}
+    </p>
+  </div>
+</div>
+{% endblock %}

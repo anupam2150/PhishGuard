@@ -1,0 +1,322 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>PhishGuard Scan Report — {{ result.domain }}</title>
+<style>
+  /* ── Reset & base ── */
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
+    font-size: 10pt;
+    color: #1a1a1a;
+    background: #fff;
+    line-height: 1.5;
+  }
+  a { color: #1a56db; text-decoration: none; }
+
+  /* ── Page layout ── */
+  @page {
+    size: A4;
+    margin: 18mm 16mm 22mm 16mm;
+    @bottom-center {
+      content: "PhishGuard Confidential — For authorized use only — Page " counter(page) " of " counter(pages);
+      font-size: 7.5pt;
+      color: #888;
+    }
+  }
+
+  /* ── Header ── */
+  .report-header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    border-bottom: 3px solid #da3633;
+    padding-bottom: 10px;
+    margin-bottom: 18px;
+  }
+  .brand { font-size: 18pt; font-weight: 700; color: #da3633; letter-spacing: -0.5px; }
+  .brand-sub { font-size: 8pt; color: #666; margin-top: 2px; }
+  .report-meta { text-align: right; font-size: 8pt; color: #555; line-height: 1.7; }
+  .report-meta strong { color: #1a1a1a; }
+
+  /* ── Section headings ── */
+  h2 {
+    font-size: 11pt;
+    font-weight: 700;
+    color: #1a1a1a;
+    border-left: 4px solid #da3633;
+    padding-left: 8px;
+    margin: 18px 0 8px;
+    page-break-after: avoid;
+  }
+  h3 { font-size: 9.5pt; font-weight: 600; color: #333; margin: 10px 0 4px; }
+
+  /* ── Risk badge ── */
+  .risk-badge {
+    display: inline-block;
+    padding: 4px 14px;
+    border-radius: 4px;
+    font-size: 13pt;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+  }
+  .risk-CRITICAL { background: #da3633; color: #fff; }
+  .risk-HIGH     { background: #e3b341; color: #000; }
+  .risk-MEDIUM   { background: #0dcaf0; color: #000; }
+  .risk-LOW      { background: #238636; color: #fff; }
+
+  /* ── Executive summary box ── */
+  .exec-box {
+    border: 1px solid #ddd;
+    border-radius: 6px;
+    padding: 12px 16px;
+    margin-bottom: 6px;
+    display: flex;
+    align-items: center;
+    gap: 20px;
+    background: #fafafa;
+  }
+  .exec-box .risk-col { flex-shrink: 0; text-align: center; }
+  .exec-box .risk-label { font-size: 7.5pt; color: #888; text-transform: uppercase; letter-spacing: 0.5px; }
+  .exec-box .detail-col { flex: 1; }
+  .exec-box .url-text { font-family: monospace; font-size: 8.5pt; color: #333; word-break: break-all; }
+
+  /* ── Tables ── */
+  table { width: 100%; border-collapse: collapse; margin-bottom: 8px; font-size: 9pt; }
+  th { background: #f0f0f0; font-weight: 600; text-align: left; padding: 5px 8px; border: 1px solid #ddd; }
+  td { padding: 4px 8px; border: 1px solid #e8e8e8; vertical-align: top; }
+  tr:nth-child(even) td { background: #fafafa; }
+
+  /* ── Check rows ── */
+  .check-row { display: flex; align-items: center; gap: 8px; padding: 4px 0; border-bottom: 1px solid #f0f0f0; font-size: 9pt; }
+  .check-row:last-child { border-bottom: none; }
+  .dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+  .dot-pass { background: #238636; }
+  .dot-fail { background: #da3633; }
+  .dot-warn { background: #e3b341; }
+  .dot-neutral { background: #aaa; }
+  .check-label { flex: 1; }
+  .check-value { color: #555; font-size: 8.5pt; }
+
+  /* ── Flag badges ── */
+  .flag { display: inline-block; background: #fff3cd; color: #856404; border: 1px solid #ffc107;
+          border-radius: 3px; padding: 1px 6px; font-size: 8pt; margin: 2px 2px 2px 0; }
+  .flag-danger { background: #f8d7da; color: #842029; border-color: #f5c2c7; }
+
+  /* ── Engine table ── */
+  .engine-malicious { color: #842029; font-weight: 600; }
+  .engine-suspicious { color: #856404; font-weight: 600; }
+
+  /* ── Recommendations ── */
+  .rec-list { list-style: none; padding: 0; }
+  .rec-list li { padding: 4px 0 4px 18px; position: relative; font-size: 9pt; border-bottom: 1px solid #f5f5f5; }
+  .rec-list li:last-child { border-bottom: none; }
+  .rec-list li::before { content: "▶"; position: absolute; left: 0; color: #da3633; font-size: 7pt; top: 6px; }
+
+  /* ── Footer disclaimer ── */
+  .disclaimer {
+    margin-top: 24px;
+    padding-top: 10px;
+    border-top: 1px solid #ddd;
+    font-size: 7.5pt;
+    color: #888;
+    line-height: 1.6;
+  }
+
+  /* ── Page break helpers ── */
+  .no-break { page-break-inside: avoid; }
+</style>
+</head>
+<body>
+
+<!-- ── Header ── -->
+<div class="report-header">
+  <div>
+    <div class="brand">🛡 PhishGuard</div>
+    <div class="brand-sub">Phishing Detection &amp; Threat Intelligence</div>
+  </div>
+  <div class="report-meta">
+    <div><strong>Report Type:</strong> URL Scan Report</div>
+    <div><strong>Scan ID:</strong> #{{ result.pk }}</div>
+    <div><strong>Generated:</strong> {{ generated_at|date:"Y-m-d H:i" }} UTC</div>
+    <div><strong>Scanned:</strong> {{ result.scanned_at|date:"Y-m-d H:i" }} UTC</div>
+  </div>
+</div>
+
+<!-- ── 1. Executive Summary ── -->
+<h2>1. Executive Summary</h2>
+<div class="exec-box no-break">
+  <div class="risk-col">
+    <div class="risk-label">Risk Level</div>
+    <div class="risk-badge risk-{{ result.risk_level }}">{{ result.risk_level }}</div>
+  </div>
+  <div class="detail-col">
+    <div class="url-text">{{ result.url }}</div>
+    <div style="margin-top:6px; font-size:9pt; color:#555;">
+      <strong>Domain:</strong> {{ result.domain }} &nbsp;&nbsp;
+      <strong>Scanned:</strong> {{ result.scanned_at|date:"Y-m-d H:i" }} UTC
+    </div>
+    <div style="margin-top:4px; font-size:9pt; color:#555;">
+      <strong>VT Detections:</strong> {{ result.vt_positives }} / {{ result.vt_total }} engines &nbsp;&nbsp;
+      <strong>GSB:</strong> {% if result.gsb_flagged %}⚠ Flagged{% else %}✓ Clean{% endif %} &nbsp;&nbsp;
+      <strong>PhishTank:</strong> {% if result.phishtank_flagged %}⚠ Listed{% elif result.phishtank_flagged == False %}✓ Not listed{% else %}—{% endif %}
+    </div>
+  </div>
+</div>
+
+<!-- ── 2. Security Checks ── -->
+<h2>2. Security Checks</h2>
+<div class="no-break">
+  <div class="check-row">
+    <span class="dot {% if result.vt_positives == 0 %}dot-pass{% else %}dot-fail{% endif %}"></span>
+    <span class="check-label">VirusTotal</span>
+    <span class="check-value">{{ result.vt_positives }} / {{ result.vt_total }} engines flagged ({{ vt_pct }}%)</span>
+  </div>
+  <div class="check-row">
+    <span class="dot {% if not result.gsb_flagged %}dot-pass{% else %}dot-fail{% endif %}"></span>
+    <span class="check-label">Google Safe Browsing</span>
+    <span class="check-value">{% if result.gsb_flagged %}Flagged as unsafe{% else %}Clean{% endif %}</span>
+  </div>
+  <div class="check-row">
+    <span class="dot {% if result.phishtank_flagged %}dot-fail{% elif result.phishtank_flagged == False %}dot-pass{% else %}dot-neutral{% endif %}"></span>
+    <span class="check-label">PhishTank</span>
+    <span class="check-value">
+      {% if result.phishtank_flagged %}Confirmed phishing ({{ phishtank.source|default:"" }})
+      {% elif result.phishtank_flagged == False %}Not in database
+      {% else %}Not checked{% endif %}
+    </span>
+  </div>
+  <div class="check-row">
+    <span class="dot {% if result.domain_age_days and result.domain_age_days >= 30 %}dot-pass{% elif result.domain_age_days is not None %}dot-warn{% else %}dot-neutral{% endif %}"></span>
+    <span class="check-label">Domain Age</span>
+    <span class="check-value">{% if result.domain_age_days is not None %}{{ result.domain_age_days }} days{% else %}Unknown{% endif %}</span>
+  </div>
+  <div class="check-row">
+    <span class="dot {% if result.whois_registrar %}dot-pass{% else %}dot-neutral{% endif %}"></span>
+    <span class="check-label">WHOIS Registrar</span>
+    <span class="check-value">{{ result.whois_registrar|default:"Not available" }}</span>
+  </div>
+  <div class="check-row">
+    {% if ssl.ssl_available %}
+      <span class="dot {% if ssl.ssl_risk_flags %}dot-warn{% else %}dot-pass{% endif %}"></span>
+    {% else %}
+      <span class="dot dot-neutral"></span>
+    {% endif %}
+    <span class="check-label">SSL / TLS Certificate</span>
+    <span class="check-value">
+      {% if ssl.ssl_available %}
+        {{ ssl.days_remaining }} days remaining — issued by {{ ssl.issuer|default:"Unknown" }}
+        {% if ssl.is_self_signed %}(Self-signed){% endif %}
+      {% elif ssl.error %}{{ ssl.error }}
+      {% else %}Not available{% endif %}
+    </span>
+  </div>
+</div>
+
+<!-- ── 3. VirusTotal Results ── -->
+<h2>3. VirusTotal Analysis</h2>
+{% if flagged_engines %}
+<p style="font-size:9pt; color:#555; margin-bottom:6px;">
+  {{ result.vt_positives }} of {{ result.vt_total }} antivirus engines flagged this URL.
+</p>
+<table class="no-break">
+  <thead>
+    <tr><th style="width:40%">Engine</th><th style="width:25%">Category</th><th>Detection</th></tr>
+  </thead>
+  <tbody>
+    {% for e in flagged_engines %}
+    <tr>
+      <td>{{ e.name }}</td>
+      <td class="{% if e.category == 'malicious' %}engine-malicious{% else %}engine-suspicious{% endif %}">
+        {{ e.category|capfirst }}
+      </td>
+      <td>{{ e.result|default:"—" }}</td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% else %}
+<p style="font-size:9pt; color:#238636;">✓ No antivirus engines flagged this URL.</p>
+{% endif %}
+
+<!-- ── 4. WHOIS & Domain Data ── -->
+<h2>4. WHOIS &amp; Domain Data</h2>
+<table class="no-break">
+  <tbody>
+    <tr><th style="width:30%">Full URL</th><td style="font-family:monospace; font-size:8.5pt; word-break:break-all;">{{ result.url }}</td></tr>
+    <tr><th>Domain</th><td>{{ result.domain }}</td></tr>
+    <tr><th>Registrar</th><td>{{ result.whois_registrar|default:"Not available" }}</td></tr>
+    <tr><th>Domain Age</th><td>{% if result.domain_age_days is not None %}{{ result.domain_age_days }} days{% else %}Unknown{% endif %}</td></tr>
+  </tbody>
+</table>
+
+<!-- ── 5. SSL/TLS Certificate ── -->
+<h2>5. SSL / TLS Certificate Analysis</h2>
+{% if ssl.ssl_available %}
+  {% if ssl.ssl_risk_flags %}
+  <div style="margin-bottom:8px;">
+    {% for flag in ssl.ssl_risk_flags %}
+      <span class="flag flag-danger">⚠ {{ flag }}</span>
+    {% endfor %}
+  </div>
+  {% endif %}
+  <table class="no-break">
+    <tbody>
+      <tr><th style="width:30%">Subject (CN)</th><td>{{ ssl.subject|default:"—" }}</td></tr>
+      <tr><th>Issuer (CN)</th><td>{{ ssl.issuer|default:"—" }}{% if ssl.is_self_signed %} <span class="flag flag-danger">Self-signed</span>{% endif %}</td></tr>
+      <tr><th>Valid From</th><td>{{ ssl.valid_from|slice:":10" }}</td></tr>
+      <tr><th>Valid Until</th><td>{{ ssl.valid_until|slice:":10" }}</td></tr>
+      <tr><th>Days Remaining</th><td>{% if ssl.days_remaining < 0 %}EXPIRED{% else %}{{ ssl.days_remaining }} days{% endif %}</td></tr>
+      <tr><th>Signature Algorithm</th><td>{{ ssl.signature_algorithm|default:"—" }}</td></tr>
+      <tr><th>Recently Issued</th><td>{% if ssl.is_recently_issued %}Yes (&lt; 30 days){% else %}No{% endif %}</td></tr>
+      {% if ssl.san_domains %}
+      <tr><th>SAN Count</th><td>{{ ssl.san_domains|length }} domains{% if ssl.has_wildcard_san %} (includes wildcard){% endif %}</td></tr>
+      {% endif %}
+    </tbody>
+  </table>
+{% else %}
+  <p style="font-size:9pt; color:#888;">
+    {% if ssl.error %}{{ ssl.error }}{% else %}SSL data not available for this URL.{% endif %}
+  </p>
+{% endif %}
+
+<!-- ── 6. Recommendations ── -->
+<h2>6. Recommendations</h2>
+<ul class="rec-list no-break">
+  {% if result.risk_level == "CRITICAL" or result.risk_level == "HIGH" %}
+    <li>Do not visit or interact with this URL. Block it at the network/firewall level immediately.</li>
+    <li>Report the URL to your security team and relevant threat intelligence platforms.</li>
+    {% if result.gsb_flagged %}<li>Google Safe Browsing has flagged this URL — warn users via browser policy.</li>{% endif %}
+    {% if result.phishtank_flagged %}<li>PhishTank confirms this as a phishing page — submit to your email gateway blocklist.</li>{% endif %}
+  {% elif result.risk_level == "MEDIUM" %}
+    <li>Exercise caution. Monitor this domain for further suspicious activity.</li>
+    <li>Consider adding to a watchlist for periodic re-scanning.</li>
+  {% else %}
+    <li>No immediate action required. Continue routine monitoring.</li>
+  {% endif %}
+  {% if result.domain_age_days is not None and result.domain_age_days < 30 %}
+    <li>Domain is less than 30 days old — newly registered domains are a common phishing indicator.</li>
+  {% endif %}
+  {% if ssl.ssl_risk_flags %}
+    {% for flag in ssl.ssl_risk_flags %}
+      <li>SSL risk: {{ flag }} — verify certificate legitimacy before trusting this site.</li>
+    {% endfor %}
+  {% endif %}
+  {% if not result.whois_registrar %}
+    <li>WHOIS registrar data is unavailable — this may indicate domain privacy protection or a suspicious registration.</li>
+  {% endif %}
+  <li>Add this indicator to the PhishGuard Watchlist for automated re-scanning every 6 hours.</li>
+</ul>
+
+<!-- ── Disclaimer ── -->
+<div class="disclaimer">
+  <strong>Disclaimer:</strong> This report is generated automatically by PhishGuard for informational and defensive security purposes only.
+  Results are based on third-party threat intelligence feeds (VirusTotal, Google Safe Browsing, PhishTank) and may not reflect the current
+  state of the URL. Do not use this report as the sole basis for legal or enforcement action.
+  PhishGuard is not responsible for decisions made based on this report.
+  Generated {{ generated_at|date:"Y-m-d H:i" }} UTC &nbsp;|&nbsp; Scan #{{ result.pk }} &nbsp;|&nbsp; {{ result.domain }}
+</div>
+
+</body>
+</html>

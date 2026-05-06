@@ -118,6 +118,42 @@
   </div>
 </div>
 
+<!-- Trend + Top Domains charts -->
+<div class="row g-4 mt-1">
+
+  <!-- Scan Activity line chart -->
+  <div class="col-lg-7">
+    <div class="card h-100">
+      <div class="card-header">
+        <i class="bi bi-graph-up me-2 text-info"></i>Scan Activity &mdash; Last 14 Days
+      </div>
+      <div class="card-body">
+        <canvas id="trendChart" style="max-height:260px;"></canvas>
+      </div>
+    </div>
+  </div>
+
+  <!-- Top Threat Domains horizontal bar chart -->
+  <div class="col-lg-5">
+    <div class="card h-100">
+      <div class="card-header">
+        <i class="bi bi-bar-chart-fill me-2 text-danger"></i>Top Threat Domains (30 days)
+      </div>
+      <div class="card-body">
+        {% if top_domain_labels %}
+          <canvas id="topDomainsChart" style="max-height:260px;"></canvas>
+        {% else %}
+          <div class="d-flex flex-column align-items-center justify-content-center h-100 text-muted py-4">
+            <i class="bi bi-bar-chart d-block fs-2 mb-2 opacity-25"></i>
+            <div class="small">No HIGH / CRITICAL scans in the last 30 days.</div>
+          </div>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+
+</div>
+
 <!-- Recent Email + Intel -->
 <div class="row g-4 mt-1">
   <div class="col-lg-6">
@@ -203,6 +239,144 @@
       }
     }
   });
+
+  /* ── Shared dark-theme Chart.js defaults ── */
+  const _gridColor  = "rgba(48,54,61,0.8)";
+  const _tickColor  = "#8b949e";
+  const _titleColor = "#e6edf3";
+
+  /* ── Scan Activity — line chart ── */
+  new Chart(document.getElementById("trendChart").getContext("2d"), {
+    type: "line",
+    data: {
+      labels: {{ trend_labels|safe }},
+      datasets: [
+        {
+          label: "CRITICAL",
+          data: {{ trend_critical|safe }},
+          borderColor: "#da3633",
+          backgroundColor: "rgba(218,54,51,0.12)",
+          pointBackgroundColor: "#da3633",
+          tension: 0.35,
+          fill: true,
+          borderWidth: 2,
+          pointRadius: 3,
+        },
+        {
+          label: "HIGH",
+          data: {{ trend_high|safe }},
+          borderColor: "#e3b341",
+          backgroundColor: "rgba(227,179,65,0.10)",
+          pointBackgroundColor: "#e3b341",
+          tension: 0.35,
+          fill: true,
+          borderWidth: 2,
+          pointRadius: 3,
+        },
+        {
+          label: "MEDIUM",
+          data: {{ trend_medium|safe }},
+          borderColor: "#0dcaf0",
+          backgroundColor: "rgba(13,202,240,0.08)",
+          pointBackgroundColor: "#0dcaf0",
+          tension: 0.35,
+          fill: true,
+          borderWidth: 2,
+          pointRadius: 3,
+        },
+        {
+          label: "LOW",
+          data: {{ trend_low|safe }},
+          borderColor: "#238636",
+          backgroundColor: "rgba(35,134,54,0.08)",
+          pointBackgroundColor: "#238636",
+          tension: 0.35,
+          fill: true,
+          borderWidth: 2,
+          pointRadius: 3,
+        },
+      ]
+    },
+    options: {
+      responsive: true,
+      interaction: { mode: "index", intersect: false },
+      plugins: {
+        legend: {
+          position: "bottom",
+          labels: { color: _titleColor, padding: 14, boxWidth: 12 }
+        },
+        tooltip: {
+          backgroundColor: "#161b22",
+          borderColor: "#30363d",
+          borderWidth: 1,
+          titleColor: _titleColor,
+          bodyColor: _tickColor,
+        }
+      },
+      scales: {
+        x: {
+          ticks: { color: _tickColor, maxRotation: 45, font: { size: 11 } },
+          grid:  { color: _gridColor },
+        },
+        y: {
+          beginAtZero: true,
+          ticks: { color: _tickColor, precision: 0 },
+          grid:  { color: _gridColor },
+        }
+      }
+    }
+  });
+
+  /* ── Top Threat Domains — horizontal bar chart ── */
+  {% if top_domain_labels %}
+  new Chart(document.getElementById("topDomainsChart").getContext("2d"), {
+    type: "bar",
+    data: {
+      labels: {{ top_domain_labels|safe }},
+      datasets: [{
+        label: "HIGH / CRITICAL Scans",
+        data: {{ top_domain_counts|safe }},
+        backgroundColor: "rgba(218,54,51,0.75)",
+        borderColor: "#da3633",
+        borderWidth: 1,
+        borderRadius: 4,
+      }]
+    },
+    options: {
+      indexAxis: "y",
+      responsive: true,
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          backgroundColor: "#161b22",
+          borderColor: "#30363d",
+          borderWidth: 1,
+          titleColor: _titleColor,
+          bodyColor: _tickColor,
+        }
+      },
+      scales: {
+        x: {
+          beginAtZero: true,
+          ticks: { color: _tickColor, precision: 0 },
+          grid:  { color: _gridColor },
+        },
+        y: {
+          ticks: {
+            color: _tickColor,
+            font: { family: "monospace", size: 11 },
+            // Truncate long domain names on the axis
+            callback: function(val, idx) {
+              const lbl = this.getLabelForValue(idx);
+              return lbl.length > 28 ? lbl.slice(0, 26) + "…" : lbl;
+            }
+          },
+          grid: { color: _gridColor },
+        }
+      }
+    }
+  });
+  {% endif %}
 
   /* ── Quick Scan ── */
   const SCAN_URLS = {

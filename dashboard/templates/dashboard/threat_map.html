@@ -1,0 +1,130 @@
+{% extends "base.html" %}
+{% block title %}Threat Map — PhishGuard{% endblock %}
+
+{% block extra_head %}
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin=""/>
+<style>
+  #threat-map-container {
+    height: 500px;
+    width: 100%;
+    position: relative;
+    z-index: 0;
+  }
+  .leaflet-container {
+    height: 100%;
+    width: 100%;
+    border-radius: 8px;
+    background: #0d1117;
+  }
+  .leaflet-control-zoom { z-index: 1; }
+  .leaflet-popup { z-index: 2; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="d-flex align-items-center justify-content-between mb-3 flex-wrap gap-2">
+  <div>
+    <h5 class="mb-0"><i class="bi bi-globe2 me-2 text-danger"></i>Threat Map</h5>
+    <div class="text-muted small mt-1">HIGH &amp; CRITICAL indicators from the last 30 days, geolocated by IP.</div>
+  </div>
+  <a href="{% url 'dashboard:overview' %}" class="btn btn-sm btn-outline-secondary">
+    <i class="bi bi-speedometer2 me-1"></i>Dashboard
+  </a>
+</div>
+
+<div class="container-fluid px-0">
+  <div class="card">
+    <div class="card-body p-0" style="overflow:hidden; border-radius:8px;">
+      <div id="threat-map-container"></div>
+    </div>
+  </div>
+</div>
+
+<div class="d-flex gap-3 mt-3 flex-wrap">
+  <div class="d-flex align-items-center gap-2 small text-muted">
+    <span style="display:inline-block;width:14px;height:14px;border-radius:50%;background:#da3633;border:2px solid #ff7b72;"></span>CRITICAL
+  </div>
+  <div class="d-flex align-items-center gap-2 small text-muted">
+    <span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:#e3b341;border:2px solid #f0c060;"></span>HIGH
+  </div>
+  <div class="ms-auto small text-muted">
+    Geo: <a href="https://ipinfo.io" target="_blank" rel="noopener">ipinfo.io</a>
+    &middot; &copy; <a href="https://carto.com" target="_blank" rel="noopener">CARTO</a>
+    &middot; <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OSM</a>
+  </div>
+</div>
+
+<script>
+  const threatData = {{ threat_data_json|safe }};
+</script>
+{% endblock %}
+
+{% block scripts %}
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
+<script>
+  const map = L.map("threat-map-container", {
+    center: [20, 0],
+    zoom: 2,
+    minZoom: 1,
+    maxZoom: 10,
+    maxBoundsViscosity: 1.0,
+  });
+
+  map.setMaxBounds([[-90, -180], [90, 180]]);
+
+  L.tileLayer("https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png", {
+    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> &copy; <a href="https://carto.com/attributions">CARTO</a>',
+    subdomains: "abcd",
+    maxZoom: 19,
+    noWrap: true,
+  }).addTo(map);
+
+  /* Dark theme overrides */
+  const st = document.createElement("style");
+  st.textContent = `
+    .leaflet-control-zoom a { background:#161b22!important; color:#e6edf3!important; border-color:#30363d!important; }
+    .leaflet-control-zoom a:hover { background:#1c2128!important; }
+    .leaflet-popup-content-wrapper, .leaflet-popup-tip { background:#161b22!important; color:#e6edf3!important; border:1px solid #30363d; }
+    .leaflet-popup-content { margin:10px 14px; font-size:0.82rem; line-height:1.6; }
+    .leaflet-popup-close-button { color:#8b949e!important; }
+  `;
+  document.head.appendChild(st);
+
+  /* Summary control */
+  const info = L.control({ position: "topleft" });
+  info.onAdd = function () {
+    const d = L.DomUtil.create("div");
+    d.style.cssText = "background:#161b22cc;border:1px solid #30363d;border-radius:6px;padding:8px 14px;color:#e6edf3;font-size:0.82rem;pointer-events:none;max-width:280px;";
+    d.innerHTML = threatData.length === 0
+      ? "<span style='color:#8b949e;'>No threats yet — scan some URLs first.</span>"
+      : `<strong style="color:#ff7b72;">${threatData.length}</strong> threat${threatData.length !== 1 ? "s" : ""} &mdash; last 30 days`;
+    return d;
+  };
+  info.addTo(map);
+
+  /* Plot markers */
+  threatData.forEach(function (t) {
+    if (!t.lat || !t.lon) return;
+    const color  = t.risk_level === "CRITICAL" ? "#da3633" : "#e3b341";
+    const border = t.risk_level === "CRITICAL" ? "#ff7b72" : "#f0c060";
+    L.circleMarker([t.lat, t.lon], {
+      radius: t.risk_level === "CRITICAL" ? 10 : 7,
+      fillColor: color, color: border,
+      weight: 1.5, opacity: 1, fillOpacity: 0.85,
+    })
+    .bindPopup(
+      "<div style='min-width:180px;'>" +
+      "<span style='background:" + color + ";color:" + (t.risk_level === "CRITICAL" ? "#fff" : "#000") + ";padding:1px 7px;border-radius:4px;font-size:0.75rem;font-weight:600;'>" + t.risk_level + "</span>" +
+      "<table style='width:100%;border-collapse:collapse;font-size:0.8rem;margin-top:6px;'>" +
+      "<tr><td style='color:#8b949e;padding-right:8px;'>IP</td><td style='font-family:monospace;'>" + t.ip + "</td></tr>" +
+      "<tr><td style='color:#8b949e;'>Country</td><td>" + (t.country || "—") + (t.city ? ", " + t.city : "") + "</td></tr>" +
+      "<tr><td style='color:#8b949e;'>Indicator</td><td style='font-family:monospace;word-break:break-all;'>" + t.indicator + "</td></tr>" +
+      "<tr><td style='color:#8b949e;'>Date</td><td>" + t.scan_date + "</td></tr>" +
+      "</table></div>"
+    )
+    .addTo(map);
+  });
+
+  setTimeout(() => map.invalidateSize(true), 300);
+</script>
+{% endblock %}

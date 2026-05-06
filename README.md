@@ -1,10 +1,12 @@
 # 🛡️ PhishGuard
 
-A **Phishing Detection & Threat Intelligence Web Application** built with Python and Django.
+A **full-stack Phishing Detection & Threat Intelligence Platform** built with Python and Django.
 
 ![Python](https://img.shields.io/badge/Python-3.11+-blue?logo=python)
 ![Django](https://img.shields.io/badge/Django-5.x-green?logo=django)
 ![Bootstrap](https://img.shields.io/badge/Bootstrap-5.3-purple?logo=bootstrap)
+![DRF](https://img.shields.io/badge/DRF-3.15-red?logo=django)
+![Celery](https://img.shields.io/badge/Celery-5.x-brightgreen?logo=celery)
 ![License](https://img.shields.io/badge/License-MIT-yellow)
 
 🔗 **Live Demo:** [https://phishguard-tool.onrender.com](https://phishguard-tool.onrender.com)
@@ -14,58 +16,80 @@ A **Phishing Detection & Threat Intelligence Web Application** built with Python
 ## 📌 Features
 
 ### 🔗 URL / Domain Phishing Scanner
-- Scans URLs against **VirusTotal** (90+ AV engines)
-- Checks **Google Safe Browsing** threat database
+- Scans URLs against **VirusTotal** (90+ AV engines) with 1-hour response caching
+- Checks **Google Safe Browsing** threat database (30-min cache)
+- Checks **PhishTank** — live API or free offline daily DB (no per-request quota)
 - Performs **WHOIS lookup** for domain age and registrar
+- **SSL/TLS certificate analysis** — issuer, validity, SANs, self-signed detection, risk flags
 - Computes risk level: `LOW` / `MEDIUM` / `HIGH` / `CRITICAL`
-- Shows flagged engine badges and animated detection progress bar
-- Recent scan history with risk badges
+- **PDF report export** (WeasyPrint) — professional A4 report with all scan data
+- **Screenshot capture** (APIFlash + html2image fallback) for HIGH/CRITICAL results
+- ⚡ Cached badge shown when results served from Redis cache
+- Copy-to-clipboard and shareable permalink on every result
 
 ### 📧 Email Header Analyzer
 - Parses raw email headers using Python's `email` stdlib
 - Detects **SPF**, **DKIM**, **DMARC** pass/fail results
-- Counts relay hops and detects suspicious flags:
-  - SPF fail, DKIM missing, DMARC fail
-  - Reply-To mismatch, Lookalike domain, Excessive hops, Unknown mailer
-- Auto-expanding textarea for header input
+- Counts relay hops and detects suspicious flags
 
 ### 🔍 Threat Intelligence Lookup
 - Auto-detects indicator type: **IP / Domain / URL / Hash**
-- Queries **VirusTotal API v3** for all indicator types
-- Queries **AbuseIPDB** for IP abuse confidence score
-- Displays flagged engines, abuse reports, ISP, country
+- Queries **VirusTotal API v3** for all indicator types (1-hour cache)
+- Queries **AbuseIPDB** for IP abuse confidence score (2-hour cache)
+- Queries **URLhaus** (abuse.ch) — free, no key needed (2-hour cache)
+- Queries **Shodan** for open ports, CVEs, service banners (24-hour cache)
 
-### 🕸️ Phishing Campaign Correlator *(New)*
+### 🕸️ Phishing Campaign Correlator
 - Accepts 2–100 URLs and groups them into coordinated attack campaigns
-- Uses **Union-Find algorithm** with weighted signals:
-  - Shared IP address (+3), Shared /24 subnet (+2)
-  - Shared hosting provider (+1), Domain fingerprint similarity (+2)
-  - Shared suspicious keywords (+1)
-- **Shannon entropy** scoring per domain
-- **Confidence scoring** (HIGH / MEDIUM / LOW CONFIDENCE)
+- Uses **Union-Find algorithm** with weighted signals
 - **D3.js force-directed network graph** showing domain → IP → hosting relationships
 - Export results as JSON
-- Campaign detail view with per-URL suspicion scores and signals
-- One-click "Scan in PhishGuard" button linking back to URL scanner
+
+### 📦 Bulk URL Scanner
+- Upload `.txt` or `.csv` files with up to 500 URLs
+- Background processing via **Celery** workers (Upstash Redis broker)
+- Live progress bar polling every 3 seconds
+- Risk filter tabs, CSV report download
+- Rate-limited: 5 uploads/hour
+
+### 👁️ Watchlist & Monitoring
+- Add domains, IPs, or URLs to a personal watchlist
+- **APScheduler** re-scans every 6 hours (runs inside the web process — no extra dyno)
+- Creates `WatchlistAlert` on risk level change
+- Sends **email alerts** via Django's `send_mail()`
+- Unacknowledged alert count shown in sidebar badge
 
 ### 📊 Dashboard
-- Live stats: total scans, high/critical today, high/critical all time
-- Campaign correlator stats: total campaign scans, high confidence campaigns
-- Clickable stat cards linking to filtered result lists
+- Live stats scoped to the current user
 - Risk distribution **doughnut chart** (Chart.js)
-- Recent activity tables for all modules
-- **Quick Scan** bar — auto-detects indicator type and redirects
-  - Detects multi-line input and redirects to Campaign Correlator
-- **Global search** across all scan history
+- **14-day scan activity line chart** — per risk level, colour-coded
+- **Top 10 threat domains bar chart** — last 30 days
+- **Threat Map** (Leaflet.js + CARTO Dark Matter tiles) — geolocated HIGH/CRITICAL IPs
+- Quick Scan bar with auto-type detection
+- Global search across all scan history
 
-### 📰 Cyber News Panel
-- Fixed right-side panel with latest cybersecurity news
-- Powered by **NewsAPI** — filters out non-security articles
-- Keywords: `cybersecurity OR phishing OR malware OR ransomware OR CVE OR data breach`
-- Cached in `localStorage` for 10 minutes, auto-refreshes
-- Shows "Last updated X minutes ago" timestamp
-- Manual refresh button
-- Responsive: collapses to icon on mobile, overlay on click
+### 🔌 REST API
+- Full DRF API at `/api/` with **JWT authentication** (SimpleJWT)
+- `POST /api/scan/` — run full scanner pipeline
+- `POST /api/intel/` — run threat intel lookup
+- `POST /api/correlate/` — run correlation pipeline
+- `GET /api/stats/` — user scan statistics
+- Paginated list/detail endpoints for all resources
+- Rate-limited: 100 req/day (authenticated), 10 req/day (anonymous)
+- Browsable API in DEBUG mode
+
+### 🔐 User Authentication & API Key Management
+- Django auth — register, login, logout
+- `UserProfile` with encrypted per-user API keys (Fernet AES)
+- Users with their own keys get independent rate limits
+- Personal API key (UUID) for programmatic access
+
+### ✨ Quality of Life
+- Dark / Light theme toggle (persisted in localStorage)
+- Custom 404, 500, 429 error pages matching the dark theme
+- PWA manifest + favicon
+- Copy-to-clipboard buttons on all IOCs
+- Shareable permalinks on every scan result
 
 ---
 
@@ -74,11 +98,15 @@ A **Phishing Detection & Threat Intelligence Web Application** built with Python
 | Layer | Technology |
 |---|---|
 | Backend | Python 3.11+, Django 5.x |
-| Frontend | Django Templates, Bootstrap 5, Chart.js, D3.js v7 |
-| Database | SQLite (development) |
-| HTTP Client | requests |
-| Environment | python-dotenv |
-| Extra | dnspython, python-whois, tldextract, networkx, whitenoise, gunicorn |
+| Task Queue | Celery 5.x + Upstash Redis |
+| Scheduling | APScheduler + django-apscheduler |
+| Frontend | Bootstrap 5.3, Chart.js, D3.js v7, Leaflet.js |
+| Database | SQLite (dev) / PostgreSQL (production via dj-database-url) |
+| Cache | Upstash Redis (production) / LocMemCache (dev) |
+| API | Django REST Framework + SimpleJWT |
+| PDF | WeasyPrint |
+| Error Tracking | Sentry SDK |
+| Deployment | Render (web + worker services) |
 
 ---
 
@@ -97,17 +125,21 @@ pip install -r requirements.txt
 
 ### 3. Configure environment variables
 ```bash
-copy .env.example .env
+copy .env.example .env   # Windows
+cp .env.example .env     # macOS/Linux
 ```
 
-Edit `.env` and fill in your API keys:
+Edit `.env` — minimum required for local dev:
 ```env
 DJANGO_SECRET_KEY=your-secret-key-here
 DEBUG=True
+FIELD_ENCRYPTION_KEY=<generate below>
 VT_API_KEY=your-virustotal-api-key
-ABUSEIPDB_KEY=your-abuseipdb-api-key
-GSB_API_KEY=your-google-safe-browsing-api-key
-NEWS_API_KEY=your-newsapi-key
+```
+
+Generate a Fernet encryption key:
+```bash
+python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"
 ```
 
 ### 4. Run migrations
@@ -120,14 +152,14 @@ python manage.py migrate
 python manage.py seed_correlation
 ```
 
-### 6. Create a superuser (optional)
-```bash
-python manage.py createsuperuser
-```
-
-### 7. Start the server
+### 6. Start the development server
 ```bash
 python manage.py runserver
+```
+
+### 7. (Optional) Start Celery worker for bulk scanning
+```bash
+celery -A phishguard worker --loglevel=info --concurrency=2
 ```
 
 Visit `http://127.0.0.1:8000`
@@ -136,48 +168,93 @@ Visit `http://127.0.0.1:8000`
 
 ## 🔑 API Keys
 
-| Service | Where to get | Free tier |
-|---|---|---|
-| VirusTotal | [virustotal.com](https://www.virustotal.com/gui/join-us) | 4 req/min, 500/day |
-| AbuseIPDB | [abuseipdb.com](https://www.abuseipdb.com/register) | 1,000 req/day |
-| Google Safe Browsing | [console.cloud.google.com](https://console.cloud.google.com) | Free |
-| NewsAPI | [newsapi.org/register](https://newsapi.org/register) | 100 req/day |
+| Service | Where to get | Free tier | Used for |
+|---|---|---|---|
+| VirusTotal | [virustotal.com](https://www.virustotal.com/gui/join-us) | 4 req/min, 500/day | Scanner, Intel, Bulk |
+| AbuseIPDB | [abuseipdb.com](https://www.abuseipdb.com/register) | 1,000 req/day | Intel (IP) |
+| Google Safe Browsing | [console.cloud.google.com](https://console.cloud.google.com) | Free | Scanner |
+| NewsAPI | [newsapi.org/register](https://newsapi.org/register) | 100 req/day | News panel |
+| PhishTank | [phishtank.com](https://www.phishtank.com/api_register.php) | Optional | Scanner (offline DB works without key) |
+| Shodan | [shodan.io](https://account.shodan.io/register) | Limited free | Intel (IP) |
+| APIFlash | [apiflash.com](https://apiflash.com) | 500/month | Screenshots |
+| Upstash Redis | [console.upstash.com](https://console.upstash.com) | Free tier | Cache + Celery broker |
+| Sentry | [sentry.io](https://sentry.io) | Free tier | Error tracking |
+
+---
+
+## 🚢 Deploying to Render
+
+### Web Service
+- **Build command:** `pip install -r requirements.txt`
+- **Start command:** `gunicorn phishguard.wsgi --workers 2 --timeout 120`
+- **Release command:** `python manage.py migrate && python manage.py collectstatic --noinput`
+- Set all environment variables from `.env.example`
+
+### Worker Service (for Bulk Scanner)
+- **Start command:** `celery -A phishguard worker --loglevel=info --concurrency=2`
+- Same environment variables as the web service
+
+### Database
+- Add a **Render PostgreSQL** instance
+- Copy the **Internal Database URL** as `DATABASE_URL` in both services
+
+### Redis
+- Create a free **Upstash Redis** database at [console.upstash.com](https://console.upstash.com)
+- Copy the `rediss://` TLS URL as `REDIS_URL`
+
+### Production environment variables to set
+```
+DEBUG=False
+ALLOWED_HOSTS=your-app.onrender.com
+DATABASE_URL=postgres://...
+REDIS_URL=rediss://...
+DJANGO_SECRET_KEY=<strong random key>
+FIELD_ENCRYPTION_KEY=<fernet key>
+SENTRY_DSN=<optional>
+```
 
 ---
 
 ## 📁 Project Structure
 
 ```
-phishguard/
+PhishGuard/
 ├── phishguard/               # Django project config
-│   ├── settings.py
-│   ├── urls.py
+│   ├── settings.py           # All settings (DB, cache, Celery, DRF, Sentry)
+│   ├── urls.py               # Root URL config + handler404/500
+│   ├── views.py              # Custom 404, 500, 429 handlers
+│   ├── celery.py             # Celery app
 │   └── context_processors.py
+├── accounts/                 # Auth + encrypted API key management
 ├── scanner/                  # URL/domain phishing scanner
 ├── emailparser/              # Email header analyzer
 ├── intel/                    # Threat intelligence lookup
 ├── correlation/              # Phishing campaign correlator
-│   ├── models.py             # CampaignScan, URLRecord, Campaign
-│   ├── views.py
-│   ├── services/
-│   │   ├── url_parser.py     # Feature extraction + entropy
-│   │   ├── ip_resolver.py    # DNS resolution + subnet
-│   │   ├── hosting.py        # Hosting provider lookup (cached)
-│   │   ├── correlator.py     # Union-Find clustering
-│   │   └── confidence.py     # Weighted confidence scoring
-│   └── management/commands/
-│       └── seed_correlation.py
-├── dashboard/                # Overview, search, filtered lists
-├── services/                 # Shared external API clients
-│   ├── virustotal.py
-│   ├── abuseipdb.py
-│   ├── safebrowsing.py
-│   └── news.py
-├── templates/                # Shared base template (dark theme)
-├── static/css/               # Custom dark theme CSS
+├── bulk_scanner/             # Bulk URL scanner (Celery tasks)
+├── watchlist/                # Watchlist + APScheduler monitoring
+├── dashboard/                # Overview, charts, threat map, search
+├── api/                      # DRF REST API
+├── services/                 # Shared external API clients (all cached)
+│   ├── virustotal.py         # VirusTotal (1h cache)
+│   ├── abuseipdb.py          # AbuseIPDB (2h cache)
+│   ├── safebrowsing.py       # Google Safe Browsing (30m cache)
+│   ├── urlhaus.py            # URLhaus / abuse.ch (2h cache)
+│   ├── phishtank.py          # PhishTank live + offline DB
+│   ├── shodan_service.py     # Shodan host intel (24h cache)
+│   ├── ssl_analyzer.py       # SSL/TLS certificate analysis
+│   ├── screenshot.py         # APIFlash + html2image screenshots
+│   ├── pdf_reporter.py       # WeasyPrint PDF generation
+│   └── api_key_resolver.py   # Per-user API key resolution
+├── templates/                # Shared templates (base, 404, 500, 429)
+│   └── reports/              # PDF report template
+├── static/
+│   ├── css/custom.css        # Dark theme
+│   ├── css/theme-light.css   # Light theme overrides
+│   ├── favicon.ico
+│   └── manifest.json         # PWA manifest
 ├── .env.example
 ├── requirements.txt
-└── Procfile                  # For Render/Heroku deployment
+└── Procfile                  # Render deployment (web + worker + release)
 ```
 
 ---
@@ -187,31 +264,54 @@ phishguard/
 | Page | URL |
 |---|---|
 | Dashboard | `/` |
+| Threat Map | `/threat-map/` |
 | URL Scanner | `/scanner/` |
 | Email Analyzer | `/email/` |
 | Threat Intel | `/intel/` |
 | Campaign Correlator | `/correlation/` |
-| Correlation Results | `/correlation/results/<id>/` |
-| Campaign Detail | `/correlation/results/<id>/campaign/<n>/` |
-| Correlation History | `/correlation/history/` |
-| Global Search | `/search/?q=...` |
+| Bulk Scanner | `/bulk/` |
+| Watchlist | `/watchlist/` |
+| Watchlist Alerts | `/watchlist/alerts/` |
+| REST API Root | `/api/` |
+| Profile / API Keys | `/accounts/profile/` |
 | Admin Panel | `/admin/` |
 
 ---
 
-## 🧪 Test the Correlator
-
-Run the seed command to instantly load 15 test URLs across 3 fake campaigns:
+## 🔌 REST API Quick Reference
 
 ```bash
-python manage.py seed_correlation
-```
+# Obtain JWT token
+curl -X POST /api/token/ \
+  -H "Content-Type: application/json" \
+  -d '{"username": "you", "password": "pass"}'
 
-This creates:
-- **Campaign A** — PayPal-themed domains with shared keywords
-- **Campaign B** — Banking login patterns
-- **Campaign C** — Crypto wallet themes
-- **2 unrelated URLs** that should not cluster
+# Scan a URL
+curl -X POST /api/scan/ \
+  -H "Authorization: Bearer <access_token>" \
+  -H "Content-Type: application/json" \
+  -d '{"url": "https://suspicious.example.com"}'
+
+# Threat intel lookup
+curl -X POST /api/intel/ \
+  -H "Authorization: Bearer <access_token>" \
+  -H "Content-Type: application/json" \
+  -d '{"indicator": "1.2.3.4"}'
+
+# Correlate URLs
+curl -X POST /api/correlate/ \
+  -H "Authorization: Bearer <access_token>" \
+  -H "Content-Type: application/json" \
+  -d '{"urls": ["https://a.com", "https://b.com"], "label": "test"}'
+
+# Get scan history (filter by risk)
+curl "/api/scans/?risk=HIGH" \
+  -H "Authorization: Bearer <access_token>"
+
+# Get user stats
+curl /api/stats/ \
+  -H "Authorization: Bearer <access_token>"
+```
 
 ---
 

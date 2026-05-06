@@ -1,6 +1,7 @@
 from django.shortcuts import render, redirect, get_object_or_404
 from django.core.paginator import Paginator
 from django.contrib import messages
+from django_ratelimit.decorators import ratelimit
 import json
 
 from .forms import CampaignScanForm
@@ -12,12 +13,14 @@ from .services.correlator import CampaignCorrelator
 from .services.confidence import ConfidenceScorer
 
 
+@ratelimit(key="user_or_ip", rate="10/h", method="POST", block=True)
 def index(request):
     form = CampaignScanForm(request.POST or None)
     if request.method == "POST" and form.is_valid():
         urls = form.cleaned_data["url_input"]
         label = form.cleaned_data.get("scan_label", "")
         scan = CampaignScan.objects.create(
+            user=request.user if request.user.is_authenticated else None,
             scan_label=label,
             total_urls=len(urls),
             status="PENDING",
@@ -25,7 +28,11 @@ def index(request):
         request.session[f"scan_urls_{scan.pk}"] = urls
         return redirect("correlation:correlation_process", scan_id=scan.pk)
 
-    recent = CampaignScan.objects.order_by("-submitted_at")[:5]
+    qs = CampaignScan.objects.order_by("-submitted_at")
+    if request.user.is_authenticated:
+        recent = qs.filter(user=request.user)[:5]
+    else:
+        recent = qs.filter(user=None)[:5]
     return render(request, "correlation/index.html", {"form": form, "recent_scans": recent})
 
 
@@ -191,6 +198,10 @@ def campaign_detail(request, scan_id, campaign_index):
 
 def scan_history(request):
     qs = CampaignScan.objects.order_by("-submitted_at")
+    if request.user.is_authenticated:
+        qs = qs.filter(user=request.user)
+    else:
+        qs = qs.filter(user=None)
     paginator = Paginator(qs, 10)
     page = paginator.get_page(request.GET.get("page"))
     return render(request, "correlation/history.html", {"page_obj": page})

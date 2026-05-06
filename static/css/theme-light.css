@@ -1,0 +1,120 @@
+/* ── Light theme overrides ── */
+/* Applied when <body> has class "theme-light" */
+
+body.theme-light {
+  background-color: #f6f8fa !important;
+  color: #24292f !important;
+}
+
+body.theme-light a { color: #0969da; }
+body.theme-light a:hover { color: #0550ae; }
+body.theme-light .text-muted { color: #57606a !important; }
+
+/* Navbar & sidebar */
+body.theme-light .topnav {
+  background-color: #ffffff !important;
+  border-bottom-color: #d0d7de !important;
+}
+body.theme-light .brand { color: #24292f !important; }
+body.theme-light .sidebar-toggle { color: #57606a !important; }
+body.theme-light .sidebar-toggle:hover { background-color: #f3f4f6 !important; color: #24292f !important; }
+
+body.theme-light .sidebar {
+  background-color: #ffffff !important;
+  border-right-color: #d0d7de !important;
+}
+body.theme-light .sidebar-link { color: #57606a !important; }
+body.theme-light .sidebar-link:hover { background-color: #f3f4f6 !important; color: #24292f !important; }
+body.theme-light .sidebar-link.active { background-color: #ddf4ff !important; color: #0969da !important; border-left-color: #0969da !important; }
+body.theme-light .sidebar-footer { border-top-color: #d0d7de !important; }
+
+/* Main content */
+body.theme-light .main-content { background-color: #f6f8fa !important; }
+body.theme-light .content-area { background-color: #f6f8fa !important; }
+body.theme-light footer { background-color: #ffffff !important; border-top-color: #d0d7de !important; color: #57606a !important; }
+
+/* Cards */
+body.theme-light .card { background-color: #ffffff !important; border-color: #d0d7de !important; }
+body.theme-light .card-header { background-color: #f6f8fa !important; border-bottom-color: #d0d7de !important; color: #24292f !important; }
+body.theme-light .card-body { background-color: #ffffff !important; color: #24292f !important; }
+
+/* Tables */
+body.theme-light .table {
+  --bs-table-bg: #ffffff;
+  --bs-table-border-color: #d0d7de;
+  --bs-table-hover-bg: #f6f8fa;
+  --bs-table-color: #24292f;
+  color: #24292f !important;
+}
+body.theme-light .table th { background-color: #f6f8fa !important; color: #57606a !important; border-color: #d0d7de !important; }
+body.theme-light .table td { background-color: #ffffff !important; color: #24292f !important; border-color: #d0d7de !important; }
+body.theme-light .table-hover tbody tr:hover td { background-color: #f3f4f6 !important; }
+
+/* Forms */
+body.theme-light .form-control,
+body.theme-light .form-select {
+  background-color: #ffffff !important;
+  border-color: #d0d7de !important;
+  color: #24292f !important;
+}
+body.theme-light .form-control:focus,
+body.theme-light .form-select:focus {
+  border-color: #0969da !important;
+  box-shadow: 0 0 0 0.2rem rgba(9,105,218,0.2) !important;
+}
+body.theme-light .form-control::placeholder { color: #8c959f !important; }
+
+/* Buttons */
+body.theme-light .btn-outline-secondary { border-color: #d0d7de !important; color: #57606a !important; }
+body.theme-light .btn-outline-secondary:hover { background-color: #f3f4f6 !important; color: #24292f !important; }
+
+/* Alerts */
+body.theme-light .alert-danger  { background-color: #ffebe9 !important; border-color: #ff8182 !important; color: #82071e !important; }
+body.theme-light .alert-success { background-color: #dafbe1 !important; border-color: #56d364 !important; color: #116329 !important; }
+body.theme-light .alert-info    { background-color: #ddf4ff !important; border-color: #54aeff !important; color: #0550ae !important; }
+body.theme-light .alert-warning { background-color: #fff8c5 !important; border-color: #d4a72c !important; color: #7d4e00 !important; }
+body.theme-light .alert-secondary { background-color: #f6f8fa !important; border-color: #d0d7de !important; color: #57606a !important; }
+
+/* News panel */
+body.theme-light .news-panel { background-color: #ffffff !important; border-left-color: #d0d7de !important; }
+body.theme-light .news-panel-header { border-bottom-color: #d0d7de !important; color: #24292f !important; }
+body.theme-light .news-item { border-bottom-color: #d0d7de !important; }
+body.theme-light .news-item:hover { background-color: #f6f8fa !important; }
+body.theme-light .news-item-title { color: #24292f !important; }
+body.theme-light .news-item-title:hover { color: #0969da !important; }
+
+/* Progress */
+body.theme-light .progress { background-color: #d0d7de !important; }
+
+/* Topnav search */
+body.theme-light .topnav .form-control { background-color: #f6f8fa !important; border-color: #d0d7de !important; color: #24292f !important; }
+body.theme-light .topnav .form-control:focus { border-color: #0969da !important; }
+
+/* Verdict banners */
+body.theme-light .verdict-critical { background-color: #ffebe9 !important; border-color: #da3633 !important; }
+body.theme-light .verdict-high     { background-color: #fff8c5 !important; border-color: #d4a72c !important; }
+body.theme-light .verdict-medium   { background-color: #ddf4ff !important; border-color: #0969da !important; }
+body.theme-light .verdict-low      { background-color: #dafbe1 !important; border-color: #1a7f37 !important; }
+
+/* Check list */
+body.theme-light .check-item { border-bottom-color: #d0d7de !important; }
+
+/* Feature tiles */
+body.theme-light .feature-tile { background-color: #f6f8fa !important; border-color: #d0d7de !important; }
+
+/* Pagination */
+body.theme-light .page-link { background-color: #ffffff !important; border-color: #d0d7de !important; color: #57606a !important; }
+body.theme-light .page-link:hover { background-color: #f3f4f6 !important; color: #24292f !important; }
+body.theme-light .page-item.active .page-link { background-color: #0969da !important; border-color: #0969da !important; }
+
+/* Nav tabs */
+body.theme-light .nav-tabs { border-bottom-color: #d0d7de !important; }
+body.theme-light .nav-tabs .nav-link { color: #57606a !important; }
+body.theme-light .nav-tabs .nav-link.active { background-color: #ffffff !important; border-color: #d0d7de #d0d7de #ffffff !important; color: #24292f !important; }
+
+/* List group */
+body.theme-light .list-group-item { background-color: #ffffff !important; border-color: #d0d7de !important; color: #24292f !important; }
+
+/* Code */
+body.theme-light code { background-color: #f6f8fa !important; color: #0550ae !important; }
+body.theme-light pre  { background-color: #f6f8fa !important; border-color: #d0d7de !important; color: #24292f !important; }
