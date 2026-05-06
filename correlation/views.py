@@ -32,7 +32,7 @@ def index(request):
     if request.user.is_authenticated:
         recent = qs.filter(user=request.user)[:5]
     else:
-        recent = qs.filter(user=None)[:5]
+        recent = qs.none()
     return render(request, "correlation/index.html", {"form": form, "recent_scans": recent})
 
 
@@ -133,6 +133,11 @@ def process_scan(request, scan_id):
 
 def results(request, scan_id):
     scan = get_object_or_404(CampaignScan, pk=scan_id)
+
+    if not request.user.is_staff:
+        if scan.user is None or scan.user != request.user:
+            messages.error(request, "You do not have permission to view this result.")
+            return redirect("correlation:correlation_index")
     campaigns = scan.campaigns.prefetch_related("urls").order_by("-confidence_score")
 
     nodes, links, node_ids = [], [], {}
@@ -166,6 +171,11 @@ def results(request, scan_id):
 
 def campaign_detail(request, scan_id, campaign_index):
     scan = get_object_or_404(CampaignScan, pk=scan_id)
+
+    if not request.user.is_staff:
+        if scan.user is None or scan.user != request.user:
+            messages.error(request, "You do not have permission to view this result.")
+            return redirect("correlation:correlation_index")
     campaign = get_object_or_404(Campaign, scan=scan, campaign_index=campaign_index)
     urls = campaign.urls.all()
 

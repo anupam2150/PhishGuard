@@ -73,9 +73,15 @@ def overview(request):
         + _uf(ThreatReport.objects.filter(risk_level__in=["HIGH", "CRITICAL"])).count()
     )
 
-    recent_scans  = _uf(ScanResult.objects).order_by("-scanned_at")[:10]
-    recent_emails = _uf(EmailScan.objects).order_by("-submitted_at")[:10]
-    recent_intel  = _uf(ThreatReport.objects).order_by("-queried_at")[:10]
+    if u.is_authenticated:
+        recent_scans  = _uf(ScanResult.objects).order_by("-scanned_at")[:10]
+        recent_emails = _uf(EmailScan.objects).order_by("-submitted_at")[:10]
+        recent_intel  = _uf(ThreatReport.objects).order_by("-queried_at")[:10]
+    else:
+        # Public view — only show HIGH/CRITICAL for awareness, no personal data
+        recent_scans  = ScanResult.objects.filter(risk_level__in=["HIGH", "CRITICAL"]).order_by("-scanned_at")[:10]
+        recent_emails = []
+        recent_intel  = ThreatReport.objects.filter(risk_level__in=["HIGH", "CRITICAL"]).order_by("-queried_at")[:10]
 
     risk_order  = ["LOW", "MEDIUM", "HIGH", "CRITICAL"]
     risk_counts = {r: 0 for r in risk_order}

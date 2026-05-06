@@ -14,7 +14,7 @@ from .tasks import run_bulk_scan
 def _user_scan_qs(request):
     u = request.user
     qs = BulkScan.objects.order_by("-submitted_at")
-    return qs.filter(user=u) if u.is_authenticated else qs.filter(user=None)
+    return qs.filter(user=u) if u.is_authenticated else qs.none()
 
 
 @ratelimit(key="user_or_ip", rate="5/h", method="POST", block=True)
@@ -81,7 +81,12 @@ def status_view(request, pk):
 
 
 def results_view(request, pk):
-    scan    = get_object_or_404(BulkScan, pk=pk)
+    scan = get_object_or_404(BulkScan, pk=pk)
+
+    if not request.user.is_staff:
+        if scan.user is None or scan.user != request.user:
+            messages.error(request, "You do not have permission to view this result.")
+            return redirect("bulk_scanner:upload")
     results = scan.results.order_by("-risk_level", "url")
 
     risk_filter = request.GET.get("risk", "")

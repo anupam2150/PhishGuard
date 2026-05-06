@@ -93,14 +93,23 @@
   </div>
   <div class="col-lg-7">
     <div class="card mb-3">
-      <div class="card-header"><i class="bi bi-link-45deg"></i> Recent URL Scans</div>
+      <div class="card-header">
+        <i class="bi bi-link-45deg"></i>
+        {% if user.is_authenticated %}Recent URL Scans{% else %}<span class="text-danger"><i class="bi bi-exclamation-triangle-fill me-1"></i>Recent HIGH / CRITICAL Threats</span>{% endif %}
+      </div>
       <div class="card-body p-0">
         <table class="table table-sm table-hover mb-0">
           <thead><tr><th>Domain</th><th>Risk</th><th>Date</th></tr></thead>
           <tbody>
             {% for s in recent_scans %}
             <tr>
-              <td><a href="{% url 'scanner:result' s.pk %}">{{ s.domain }}</a></td>
+              <td>
+                {% if user.is_authenticated %}
+                  <a href="{% url 'scanner:result' s.pk %}">{{ s.domain }}</a>
+                {% else %}
+                  <span class="font-monospace">{{ s.domain }}</span>
+                {% endif %}
+              </td>
               <td>
                 {% if s.risk_level == "CRITICAL" %}<span class="badge bg-danger">CRITICAL</span>
                 {% elif s.risk_level == "HIGH" %}<span class="badge bg-warning text-dark">HIGH</span>
@@ -156,6 +165,7 @@
 
 <!-- Recent Email + Intel -->
 <div class="row g-4 mt-1">
+  {% if user.is_authenticated %}
   <div class="col-lg-6">
     <div class="card">
       <div class="card-header"><i class="bi bi-envelope-open"></i> Recent Email Analyses</div>
@@ -181,15 +191,27 @@
     </div>
   </div>
   <div class="col-lg-6">
+  {% else %}
+  <div class="col-lg-12">
+  {% endif %}
     <div class="card">
-      <div class="card-header"><i class="bi bi-search"></i> Recent Threat Intel Lookups</div>
+      <div class="card-header">
+        <i class="bi bi-search"></i>
+        {% if user.is_authenticated %}Recent Threat Intel Lookups{% else %}<span class="text-danger"><i class="bi bi-exclamation-triangle-fill me-1"></i>Recent HIGH / CRITICAL Intel</span>{% endif %}
+      </div>
       <div class="card-body p-0">
         <table class="table table-sm table-hover mb-0">
           <thead><tr><th>Indicator</th><th>Type</th><th>Risk</th></tr></thead>
           <tbody>
             {% for r in recent_intel %}
             <tr>
-              <td><a href="{% url 'intel:result' r.pk %}">{{ r.indicator|truncatechars:30 }}</a></td>
+              <td>
+                {% if user.is_authenticated %}
+                  <a href="{% url 'intel:result' r.pk %}">{{ r.indicator|truncatechars:30 }}</a>
+                {% else %}
+                  <span class="font-monospace">{{ r.indicator|truncatechars:30 }}</span>
+                {% endif %}
+              </td>
               <td><span class="badge bg-secondary">{{ r.indicator_type }}</span></td>
               <td>
                 {% if r.risk_level == "CRITICAL" %}<span class="badge bg-danger">CRITICAL</span>
