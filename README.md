@@ -78,7 +78,8 @@ A **full-stack Phishing Detection & Threat Intelligence Platform** built with Py
 - Rate-limited: 100 req/day (authenticated), 10 req/day (anonymous)
 
 ### 🔐 User Authentication & Privacy
-- Django auth — register, login, logout
+- Django auth — register, login, logout (POST-based logout with CSRF protection)
+- Secure session management with proper redirect handling after logout
 - `UserProfile` with encrypted per-user API keys (Fernet AES)
 - Users with their own keys get independent rate limits
 - Personal API key (UUID) visible to admin/staff only
@@ -332,6 +333,16 @@ curl /api/stats/ \
 
 This tool is intended for **educational and defensive security purposes only**.
 Do not use it to scan systems or URLs without proper authorization.
+
+---
+
+## 📝 Recent Updates
+
+### v1.1.0 (Latest)
+- **Fixed:** Logout redirect issue - now properly redirects to dashboard after logout
+- **Security:** Logout now uses POST method with CSRF protection instead of GET
+- **UX:** Added success message confirmation on logout
+- **Improved:** Session management and authentication flow
 
 ---
 
