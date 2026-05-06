@@ -77,11 +77,15 @@ A **full-stack Phishing Detection & Threat Intelligence Platform** built with Py
 - Paginated list/detail endpoints for all resources
 - Rate-limited: 100 req/day (authenticated), 10 req/day (anonymous)
 
-### 🔐 User Authentication & API Key Management
+### 🔐 User Authentication & Privacy
 - Django auth — register, login, logout
 - `UserProfile` with encrypted per-user API keys (Fernet AES)
 - Users with their own keys get independent rate limits
-- Personal API key (UUID) for programmatic access
+- Personal API key (UUID) visible to admin/staff only
+- All scan results, intel reports, and email analyses are **private per user**
+- Unauthenticated users see only HIGH/CRITICAL threat domains on the dashboard (no links, no personal data)
+- Login/Register modal shown when unauthenticated users attempt to use any feature
+- Sidebar counts reset to 0 on login/logout — scoped per user
 
 ### ✨ Quality of Life
 - Permanent dark theme
@@ -189,8 +193,9 @@ Visit `http://127.0.0.1:8000`
 
 ### Web Service
 - **Build command:** `./build.sh`
-- **Start command:** `gunicorn phishguard.wsgi --workers 2 --timeout 120`
-- The `Procfile` release command runs `migrate` and `collectstatic` automatically on every deploy
+- **Start command:** `gunicorn phishguard.wsgi:application --workers 2 --timeout 120`
+- The `Procfile` release command runs `migrate` automatically on every deploy
+- `collectstatic` runs during build via `build.sh`
 
 ### Worker Service (for Bulk Scanner)
 - **Build command:** `pip install -r requirements.txt`
