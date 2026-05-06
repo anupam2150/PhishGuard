@@ -8,5 +8,6 @@ urlpatterns = [
     path("scanner/", include("scanner.urls")),
     path("email/", include("emailparser.urls")),
     path("intel/", include("intel.urls")),
+    path("correlation/", include("correlation.urls")),
     path("news-feed/", news_feed, name="news_feed"),
 ]

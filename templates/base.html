@@ -83,6 +83,12 @@
           {% endif %}
         </a>
       </li>
+      <li>
+        <a href="{% url 'correlation:correlation_index' %}" class="sidebar-link {% if '/correlation/' in request.path %}active{% endif %}">
+          <i class="bi bi-diagram-3-fill"></i>
+          <span class="sidebar-label">Campaign Correlator</span>
+        </a>
+      </li>
     </ul>
     <div class="sidebar-footer">
       <span class="sidebar-label small text-muted">Detect. Analyze. Defend.</span>

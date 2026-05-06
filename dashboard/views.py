@@ -5,7 +5,6 @@ from django.core.paginator import Paginator
 from scanner.models import ScanResult
 from emailparser.models import EmailScan
 from intel.models import ThreatReport
-from services.news import get_cyber_news
 
 
 def overview(request):
@@ -38,6 +37,18 @@ def overview(request):
         for row in qs:
             risk_counts[row["risk_level"]] = risk_counts.get(row["risk_level"], 0) + row["c"]
 
+    # Correlation stats
+    total_campaign_scans = 0
+    high_confidence_campaigns = 0
+    recent_campaign_scans = []
+    try:
+        from correlation.models import CampaignScan, Campaign
+        total_campaign_scans = CampaignScan.objects.count()
+        high_confidence_campaigns = Campaign.objects.filter(confidence_score__gte=0.75).count()
+        recent_campaign_scans = CampaignScan.objects.filter(status="COMPLETE").order_by("-submitted_at")[:3]
+    except Exception:
+        pass
+
     return render(request, "dashboard/overview.html", {
         "total_scans": total_scans,
         "high_critical_today": high_critical_today,
@@ -47,27 +58,28 @@ def overview(request):
         "recent_intel": recent_intel,
         "risk_labels": list(risk_counts.keys()),
         "risk_data": list(risk_counts.values()),
+        "total_campaign_scans": total_campaign_scans,
+        "high_confidence_campaigns": high_confidence_campaigns,
+        "recent_campaign_scans": recent_campaign_scans,
     })
 
 
 def global_search(request):
     query = request.GET.get("q", "").strip()
+    from django.db.models import Q
     url_results = email_results = intel_results = []
     total = 0
 
     if query and len(query) >= 2:
-        url_results   = ScanResult.objects.filter(
+        url_results = ScanResult.objects.filter(
             Q(url__icontains=query) | Q(domain__icontains=query) | Q(risk_level__icontains=query)
         ).order_by("-scanned_at")[:20]
-
         email_results = EmailScan.objects.filter(
             Q(sender__icontains=query) | Q(spf_result__icontains=query) | Q(risk_level__icontains=query)
         ).order_by("-submitted_at")[:20]
-
         intel_results = ThreatReport.objects.filter(
             Q(indicator__icontains=query) | Q(indicator_type__icontains=query) | Q(risk_level__icontains=query)
         ).order_by("-queried_at")[:20]
-
         total = len(url_results) + len(email_results) + len(intel_results)
 
     return render(request, "dashboard/search_results.html", {
@@ -81,9 +93,7 @@ def global_search(request):
 
 def high_critical_today_view(request):
     today = timezone.now().date()
-    qs = ScanResult.objects.filter(
-        risk_level__in=["HIGH", "CRITICAL"], scanned_at__date=today
-    ).order_by("-scanned_at")
+    qs = ScanResult.objects.filter(risk_level__in=["HIGH", "CRITICAL"], scanned_at__date=today).order_by("-scanned_at")
     paginator = Paginator(qs, 20)
     page = paginator.get_page(request.GET.get("page"))
     return render(request, "dashboard/filtered_list.html", {
@@ -95,9 +105,7 @@ def high_critical_today_view(request):
 
 
 def high_critical_alltime_view(request):
-    qs = ScanResult.objects.filter(
-        risk_level__in=["HIGH", "CRITICAL"]
-    ).order_by("-scanned_at")
+    qs = ScanResult.objects.filter(risk_level__in=["HIGH", "CRITICAL"]).order_by("-scanned_at")
     paginator = Paginator(qs, 20)
     page = paginator.get_page(request.GET.get("page"))
     return render(request, "dashboard/filtered_list.html", {

@@ -1,0 +1,132 @@
+{% extends "base.html" %}
+{% block title %}Phishing Campaign Correlator{% endblock %}
+
+{% block content %}
+<div class="d-flex align-items-center justify-content-between mb-4">
+  <div>
+    <h4 class="mb-0"><i class="bi bi-diagram-3-fill text-danger"></i> Phishing Campaign Correlator</h4>
+    <span class="text-muted small">Group multiple phishing URLs into coordinated attack campaigns</span>
+  </div>
+  <a href="{% url 'correlation:correlation_history' %}" class="btn btn-outline-secondary btn-sm">
+    <i class="bi bi-clock-history me-1"></i>History
+  </a>
+</div>
+
+<div class="row g-4">
+  <div class="col-lg-8">
+    <div class="card">
+      <div class="card-header"><i class="bi bi-link-45deg me-2"></i>Submit URLs for Correlation</div>
+      <div class="card-body">
+        <form method="post" novalidate id="correlationForm">
+          {% csrf_token %}
+          <div class="mb-3">
+            <label class="form-label fw-semibold">Scan Label <span class="text-muted small">(optional)</span></label>
+            {{ form.scan_label }}
+            {% if form.scan_label.errors %}<div class="text-danger small mt-1">{{ form.scan_label.errors|join:", " }}</div>{% endif %}
+          </div>
+          <div class="mb-3">
+            <label class="form-label fw-semibold">URLs <span class="text-muted small">(2–100, one per line)</span></label>
+            {{ form.url_input }}
+            {% if form.url_input.errors %}<div class="text-danger small mt-1">{{ form.url_input.errors|join:", " }}</div>{% endif %}
+          </div>
+
+          <!-- How it works -->
+          <div class="mb-3">
+            <button class="btn btn-sm btn-outline-secondary" type="button" data-bs-toggle="collapse" data-bs-target="#howItWorks">
+              <i class="bi bi-info-circle me-1"></i>How it works
+            </button>
+            <div class="collapse mt-2" id="howItWorks">
+              <div class="card card-body" style="font-size:0.85rem;">
+                <div class="row g-2">
+                  <div class="col-md-3 text-center">
+                    <i class="bi bi-hdd-network text-info fs-4 d-block mb-1"></i>
+                    <strong>Shared IP</strong><br>
+                    <span class="text-muted">URLs resolving to the same server are grouped</span>
+                  </div>
+                  <div class="col-md-3 text-center">
+                    <i class="bi bi-building text-warning fs-4 d-block mb-1"></i>
+                    <strong>Shared Hosting</strong><br>
+                    <span class="text-muted">Same hosting provider signals coordinated infrastructure</span>
+                  </div>
+                  <div class="col-md-3 text-center">
+                    <i class="bi bi-type text-success fs-4 d-block mb-1"></i>
+                    <strong>Domain Patterns</strong><br>
+                    <span class="text-muted">Similar domain structure and keywords link campaigns</span>
+                  </div>
+                  <div class="col-md-3 text-center">
+                    <i class="bi bi-bar-chart-fill text-danger fs-4 d-block mb-1"></i>
+                    <strong>Confidence Score</strong><br>
+                    <span class="text-muted">Weighted signals produce a 0–1 confidence rating</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <button type="submit" class="btn btn-danger w-100" id="submitBtn">
+            <span id="submitText"><i class="bi bi-radar me-1"></i>Analyze Campaign</span>
+            <span id="submitLoading" class="d-none"><span class="spinner-border spinner-border-sm me-1"></span>Analyzing...</span>
+          </button>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-lg-4">
+    <div class="card">
+      <div class="card-header"><i class="bi bi-lightning-charge-fill text-warning me-2"></i>Detection Signals</div>
+      <div class="card-body p-0">
+        <ul class="check-list">
+          <li class="check-item"><span class="check-icon check-fail"><i class="bi bi-hdd-network-fill"></i></span><div><div class="fw-semibold small">Shared IP Address</div><div class="text-muted" style="font-size:0.75rem;">Weight: +3</div></div></li>
+          <li class="check-item"><span class="check-icon check-warn"><i class="bi bi-diagram-2-fill"></i></span><div><div class="fw-semibold small">Shared /24 Subnet</div><div class="text-muted" style="font-size:0.75rem;">Weight: +2</div></div></li>
+          <li class="check-item"><span class="check-icon check-warn"><i class="bi bi-building"></i></span><div><div class="fw-semibold small">Shared Hosting Provider</div><div class="text-muted" style="font-size:0.75rem;">Weight: +1</div></div></li>
+          <li class="check-item"><span class="check-icon check-pass"><i class="bi bi-fingerprint"></i></span><div><div class="fw-semibold small">Domain Fingerprint Similarity</div><div class="text-muted" style="font-size:0.75rem;">Jaccard &gt; 0.4 → Weight: +2</div></div></li>
+          <li class="check-item"><span class="check-icon check-neutral"><i class="bi bi-key-fill"></i></span><div><div class="fw-semibold small">Shared Suspicious Keywords</div><div class="text-muted" style="font-size:0.75rem;">2+ shared → Weight: +1</div></div></li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</div>
+
+{% if recent_scans %}
+<div class="card mt-4">
+  <div class="card-header"><i class="bi bi-clock-history me-2"></i>Recent Scans</div>
+  <div class="card-body p-0">
+    <table class="table table-sm table-hover mb-0">
+      <thead><tr><th>Label</th><th>URLs</th><th>Campaigns</th><th>Status</th><th>Date</th><th></th></tr></thead>
+      <tbody>
+        {% for s in recent_scans %}
+        <tr>
+          <td>{{ s.scan_label|default:"—" }}</td>
+          <td>{{ s.total_urls }}</td>
+          <td>{{ s.total_campaigns }}</td>
+          <td>
+            {% if s.status == "COMPLETE" %}<span class="badge bg-success">COMPLETE</span>
+            {% elif s.status == "FAILED" %}<span class="badge bg-danger">FAILED</span>
+            {% elif s.status == "PROCESSING" %}<span class="badge bg-warning text-dark">PROCESSING</span>
+            {% else %}<span class="badge bg-secondary">PENDING</span>{% endif %}
+          </td>
+          <td><span class="text-muted small">{{ s.submitted_at|date:"m/d H:i" }}</span></td>
+          <td>
+            {% if s.status == "COMPLETE" %}
+            <a href="{% url 'correlation:correlation_results' s.pk %}" class="btn btn-sm btn-outline-secondary py-0">View</a>
+            {% endif %}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endif %}
+{% endblock %}
+
+{% block scripts %}
+<script>
+  document.getElementById('correlationForm').addEventListener('submit', function() {
+    document.getElementById('submitText').classList.add('d-none');
+    document.getElementById('submitLoading').classList.remove('d-none');
+    document.getElementById('submitBtn').disabled = true;
+  });
+</script>
+{% endblock %}

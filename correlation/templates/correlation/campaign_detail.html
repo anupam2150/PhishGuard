@@ -1,0 +1,143 @@
+{% extends "base.html" %}
+{% block title %}Campaign #{{ campaign.campaign_index }} — Scan #{{ scan.pk }}{% endblock %}
+
+{% block content %}
+<!-- Breadcrumb -->
+<nav aria-label="breadcrumb" class="mb-3">
+  <ol class="breadcrumb">
+    <li class="breadcrumb-item"><a href="{% url 'dashboard:overview' %}">Dashboard</a></li>
+    <li class="breadcrumb-item"><a href="{% url 'correlation:correlation_index' %}">Correlation</a></li>
+    <li class="breadcrumb-item"><a href="{% url 'correlation:correlation_results' scan.pk %}">Scan #{{ scan.pk }}</a></li>
+    <li class="breadcrumb-item active">Campaign #{{ campaign.campaign_index }}</li>
+  </ol>
+</nav>
+
+<!-- Campaign summary -->
+<div class="card mb-4">
+  <div class="card-header d-flex align-items-center justify-content-between">
+    <h5 class="mb-0"><i class="bi bi-diagram-3-fill text-danger me-2"></i>Campaign #{{ campaign.campaign_index }}</h5>
+    {% if campaign.confidence_label == "HIGH" %}<span class="badge bg-success fs-6">HIGH CONFIDENCE</span>
+    {% elif campaign.confidence_label == "MEDIUM" %}<span class="badge bg-warning text-dark fs-6">MEDIUM CONFIDENCE</span>
+    {% else %}<span class="badge bg-danger fs-6">LOW CONFIDENCE</span>{% endif %}
+  </div>
+  <div class="card-body">
+    <div class="mb-3">
+      <div class="d-flex justify-content-between mb-1">
+        <span class="text-muted small">Confidence Score</span>
+        <span class="fw-bold">{{ campaign.confidence_score|floatformat:2 }}</span>
+      </div>
+      <div class="progress" style="height:12px;">
+        <div class="progress-bar {% if campaign.confidence_label == 'HIGH' %}bg-success{% elif campaign.confidence_label == 'MEDIUM' %}bg-warning{% else %}bg-danger{% endif %}"
+             style="width:0%" data-target="{{ campaign.confidence_score|floatformat:0 }}0"></div>
+      </div>
+    </div>
+
+    <h6 class="text-muted text-uppercase mb-2" style="font-size:0.75rem;">Grouping Reasons</h6>
+    <ul class="list-unstyled">
+      {% for reason in campaign.reasons %}
+      <li class="mb-2">
+        {% if "IP" in reason %}<i class="bi bi-hdd-network-fill text-danger me-2"></i>
+        {% elif "pattern" in reason or "Pattern" in reason %}<i class="bi bi-fingerprint text-warning me-2"></i>
+        {% elif "hosting" in reason or "Hosting" in reason %}<i class="bi bi-building text-info me-2"></i>
+        {% else %}<i class="bi bi-key-fill text-secondary me-2"></i>{% endif %}
+        {{ reason }}
+      </li>
+      {% endfor %}
+    </ul>
+  </div>
+</div>
+
+<!-- URL details table -->
+<div class="card mb-4">
+  <div class="card-header"><i class="bi bi-table me-2"></i>URLs in this Campaign ({{ urls|length }})</div>
+  <div class="card-body p-0">
+    <table class="table table-sm mb-0">
+      <thead>
+        <tr><th>#</th><th>URL</th><th>Domain</th><th>IP</th><th>Subnet</th><th>Hosting</th><th>Suspicion</th><th>Signals</th><th>Keywords</th><th></th></tr>
+      </thead>
+      <tbody>
+        {% for url in urls %}
+        <tr>
+          <td class="text-muted">{{ forloop.counter }}</td>
+          <td class="text-truncate" style="max-width:180px;" title="{{ url.raw_url }}">
+            <span class="font-monospace small">{{ url.raw_url|truncatechars:40 }}</span>
+            <button class="btn btn-sm p-0 ms-1" onclick="navigator.clipboard.writeText('{{ url.raw_url|escapejs }}')" title="Copy">
+              <i class="bi bi-clipboard text-muted" style="font-size:0.75rem;"></i>
+            </button>
+          </td>
+          <td><span class="small">{{ url.domain }}</span></td>
+          <td><span class="text-muted small">{{ url.ip_address|default:"—" }}</span></td>
+          <td><span class="text-muted small">{{ url.subnet|default:"—" }}</span></td>
+          <td><span class="text-muted small">{{ url.hosting_provider|default:"—" }}</span></td>
+          <td>
+            {% if url.suspicion_label == "HIGH" %}<span class="badge bg-danger">{{ url.suspicion_score|floatformat:2 }}</span>
+            {% elif url.suspicion_label == "MEDIUM" %}<span class="badge bg-warning text-dark">{{ url.suspicion_score|floatformat:2 }}</span>
+            {% else %}<span class="badge bg-success">{{ url.suspicion_score|floatformat:2 }}</span>{% endif %}
+          </td>
+          <td><span class="text-muted small">{{ url.suspicion_label|default:"—" }}</span></td>
+          <td><span class="text-muted small">{{ url.keywords_found|join:", "|default:"—" }}</span></td>
+          <td>
+            <a href="/scanner/?prefill={{ url.raw_url|urlencode }}" target="_blank" class="btn btn-sm btn-outline-secondary py-0" style="font-size:0.7rem;">
+              Scan
+            </a>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- Mini graph -->
+<div class="card">
+  <div class="card-header"><i class="bi bi-diagram-3 me-2"></i>Campaign Network Graph</div>
+  <div class="card-body p-0">
+    <div id="mini-graph" style="height:350px; background:#0d1117;"></div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="https://cdn.jsdelivr.net/npm/d3@7/dist/d3.min.js"></script>
+<script>
+  // Animate progress bar
+  window.addEventListener('load', () => {
+    document.querySelectorAll('.progress-bar[data-target]').forEach(bar => {
+      const t = bar.getAttribute('data-target');
+      setTimeout(() => { bar.style.transition = 'width 0.8s ease'; bar.style.width = t + '%'; }, 100);
+    });
+  });
+
+  const graphData = {{ graph_data|safe }};
+  const el = document.getElementById('mini-graph');
+  const W = el.clientWidth, H = 350;
+  const svg = d3.select('#mini-graph').append('svg').attr('width', W).attr('height', H)
+    .call(d3.zoom().on('zoom', e => g.attr('transform', e.transform)));
+  const g = svg.append('g');
+  const color = d => d.group === 'domain' ? '#da3633' : d.group === 'ip' ? '#58a6ff' : '#56d364';
+
+  const sim = d3.forceSimulation(graphData.nodes)
+    .force('link', d3.forceLink(graphData.links).id(d => d.id).distance(70))
+    .force('charge', d3.forceManyBody().strength(-150))
+    .force('center', d3.forceCenter(W / 2, H / 2));
+
+  const link = g.append('g').selectAll('line').data(graphData.links).join('line')
+    .attr('stroke', '#30363d').attr('stroke-width', 1.5);
+  const node = g.append('g').selectAll('circle').data(graphData.nodes).join('circle')
+    .attr('r', 7).attr('fill', color).attr('stroke', '#161b22').attr('stroke-width', 2)
+    .call(d3.drag()
+      .on('start', (e, d) => { if (!e.active) sim.alphaTarget(0.3).restart(); d.fx = d.x; d.fy = d.y; })
+      .on('drag', (e, d) => { d.fx = e.x; d.fy = e.y; })
+      .on('end', (e, d) => { if (!e.active) sim.alphaTarget(0); d.fx = null; d.fy = null; }));
+  const label = g.append('g').selectAll('text').data(graphData.nodes).join('text')
+    .text(d => d.label.length > 18 ? d.label.slice(0, 18) + '…' : d.label)
+    .attr('font-size', 10).attr('fill', '#8b949e').attr('dx', 10).attr('dy', 4);
+
+  sim.on('tick', () => {
+    link.attr('x1', d => d.source.x).attr('y1', d => d.source.y)
+        .attr('x2', d => d.target.x).attr('y2', d => d.target.y);
+    node.attr('cx', d => d.x).attr('cy', d => d.y);
+    label.attr('x', d => d.x).attr('y', d => d.y);
+  });
+</script>
+{% endblock %}

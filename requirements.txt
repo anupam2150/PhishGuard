@@ -5,3 +5,5 @@ dnspython==2.6.1
 python-whois==0.9.4
 gunicorn==21.2.0
 whitenoise==6.7.0
+tldextract==5.1.2
+networkx==3.3

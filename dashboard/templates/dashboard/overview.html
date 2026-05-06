@@ -57,6 +57,30 @@
   </div>
 </div>
 
+<!-- Correlation Stats -->
+<div class="row g-3 mb-4">
+  <div class="col-md-6">
+    <a href="{% url 'correlation:correlation_history' %}" class="text-decoration-none">
+      <div class="card bg-dark border-secondary stat-card h-100">
+        <div class="card-body text-center">
+          <div class="fs-1 fw-bold text-info">{{ total_campaign_scans }}</div>
+          <div class="text-muted">Campaign Scans</div>
+        </div>
+      </div>
+    </a>
+  </div>
+  <div class="col-md-6">
+    <a href="{% url 'correlation:correlation_history' %}" class="text-decoration-none">
+      <div class="card bg-dark border-secondary stat-card h-100">
+        <div class="card-body text-center">
+          <div class="fs-1 fw-bold {% if high_confidence_campaigns > 0 %}text-danger{% else %}text-light{% endif %}">{{ high_confidence_campaigns }}</div>
+          <div class="text-muted">High Confidence Campaigns</div>
+        </div>
+      </div>
+    </a>
+  </div>
+</div>
+
 <!-- Chart + Recent URL Scans -->
 <div class="row g-4">
   <div class="col-lg-5">
@@ -182,14 +206,17 @@
 
   /* ── Quick Scan ── */
   const SCAN_URLS = {
-    url:   "{% url 'scanner:scan' %}",
-    email: "{% url 'emailparser:form' %}",
-    intel: "{% url 'intel:form' %}",
+    url:        "{% url 'scanner:scan' %}",
+    email:      "{% url 'emailparser:form' %}",
+    intel:      "{% url 'intel:form' %}",
+    correlation:"{% url 'correlation:correlation_index' %}",
   };
 
   function detectType(v) {
     v = v.trim().toLowerCase();
     if (!v) return null;
+    // Multi-line = correlation
+    if (v.includes('\n')) return 'correlation';
     if (/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v)) return "email";
     if (/^(\d{1,3}\.){3}\d{1,3}$/.test(v)) return "intel";
     if (/^[0-9a-f:]+$/i.test(v) && v.includes(":")) return "intel";
@@ -200,9 +227,10 @@
   }
 
   const hintMap = {
-    url:   "Detected: URL / Domain → URL Scanner",
-    email: "Detected: Email address → Email Analyzer",
-    intel: "Detected: IP / Hash / Domain → Threat Intel",
+    url:         "Detected: URL / Domain → URL Scanner",
+    email:       "Detected: Email address → Email Analyzer",
+    intel:       "Detected: IP / Hash / Domain → Threat Intel",
+    correlation: "Detected: Multiple URLs → Campaign Correlator",
   };
 
   document.getElementById("quick-scan-input").addEventListener("input", function() {

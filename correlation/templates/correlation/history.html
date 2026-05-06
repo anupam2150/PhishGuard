@@ -1,0 +1,55 @@
+{% extends "base.html" %}
+{% block title %}Correlation History{% endblock %}
+
+{% block content %}
+<div class="d-flex align-items-center justify-content-between mb-4">
+  <h4 class="mb-0"><i class="bi bi-clock-history text-danger me-2"></i>Correlation Scan History</h4>
+  <a href="{% url 'correlation:correlation_index' %}" class="btn btn-danger btn-sm">
+    <i class="bi bi-plus me-1"></i>New Scan
+  </a>
+</div>
+
+<div class="card">
+  <div class="card-body p-0">
+    <table class="table table-sm table-hover mb-0">
+      <thead><tr><th>#</th><th>Label</th><th>URLs</th><th>Campaigns</th><th>Status</th><th>Date</th><th></th></tr></thead>
+      <tbody>
+        {% for s in page_obj %}
+        <tr>
+          <td class="text-muted">{{ s.pk }}</td>
+          <td>{{ s.scan_label|default:"—" }}</td>
+          <td>{{ s.total_urls }}</td>
+          <td>{{ s.total_campaigns }}</td>
+          <td>
+            {% if s.status == "COMPLETE" %}<span class="badge bg-success">COMPLETE</span>
+            {% elif s.status == "FAILED" %}<span class="badge bg-danger">FAILED</span>
+            {% elif s.status == "PROCESSING" %}<span class="badge bg-warning text-dark">PROCESSING</span>
+            {% else %}<span class="badge bg-secondary">PENDING</span>{% endif %}
+          </td>
+          <td><span class="text-muted small">{{ s.submitted_at|date:"Y-m-d H:i" }}</span></td>
+          <td>
+            {% if s.status == "COMPLETE" %}
+            <a href="{% url 'correlation:correlation_results' s.pk %}" class="btn btn-sm btn-outline-secondary py-0">View</a>
+            {% endif %}
+          </td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="7" class="text-muted text-center py-3">No scans yet.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+{% if page_obj.has_other_pages %}
+<nav class="mt-3">
+  <ul class="pagination pagination-sm justify-content-center">
+    {% if page_obj.has_previous %}<li class="page-item"><a class="page-link" href="?page={{ page_obj.previous_page_number }}">&laquo;</a></li>{% endif %}
+    {% for num in page_obj.paginator.page_range %}
+    <li class="page-item {% if page_obj.number == num %}active{% endif %}"><a class="page-link" href="?page={{ num }}">{{ num }}</a></li>
+    {% endfor %}
+    {% if page_obj.has_next %}<li class="page-item"><a class="page-link" href="?page={{ page_obj.next_page_number }}">&raquo;</a></li>{% endif %}
+  </ul>
+</nav>
+{% endif %}
+{% endblock %}

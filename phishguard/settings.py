@@ -22,6 +22,7 @@ INSTALLED_APPS = [
     "emailparser",
     "intel",
     "dashboard",
+    "correlation",
 ]
 
 MIDDLEWARE = [
@@ -71,3 +72,9 @@ STATICFILES_STORAGE = "whitenoise.storage.CompressedStaticFilesStorage"
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
 MESSAGE_STORAGE = "django.contrib.messages.storage.session.SessionStorage"
+
+CACHES = {
+    "default": {
+        "BACKEND": "django.core.cache.backends.locmem.LocMemCache"
+    }
+}
